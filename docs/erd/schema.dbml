@@ -54,6 +54,7 @@ TableGroup payments_events [color: #ef4444] {
 TableGroup notifications_settings [color: #06b6d4] {
     message_templates
     settings
+    semesters
 }
 
 TableGroup abilities [color: #ec4899] {
@@ -311,7 +312,7 @@ Table attendances {
     check_in_at datetime [note: 'present/late일 때만 채움']
     vision_verification_id binary(16) [note: 'NULL 허용 (Vision 미사용 출결)']
     absence_reason varchar(255)
-    absence_category varchar(20) [note: 'CHECK: NULL or sick|family|travel|other']
+    absence_category varchar(20) [note: 'CHECK: NULL or sick|family|travel|school|other (school 추가: 2026-05-10 RG_Director 요청)']
     is_absence_notified_in_advance boolean [not null, default: 'FALSE']
     created_at datetime [not null]
     updated_at datetime [not null]
@@ -464,6 +465,28 @@ Table uploads {
     Note: '업로드 메타 (presigned URL 추적). 후처리 상태 머신'
 }
 
+// ─── §4.9 학기 (RG_Director 요청 추가, 2026-05-10) ───────────────────────────
+
+Table semesters {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    name varchar(40) [not null, note: '예: 2026-1학기']
+    starts_on date [not null]
+    ends_on date [not null, note: 'CHECK: ends_on >= starts_on']
+    is_current boolean [not null, default: 'FALSE']
+    description varchar(200)
+    current_flag binary(16) [note: 'GENERATED ALWAYS AS (IF(is_current=TRUE, tenant_id, NULL)) VIRTUAL — 학원당 is_current=TRUE 단일 보장 (partial UNIQUE 우회)']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, starts_on) [name: 'idx_semesters_tenant_id_starts_on']
+        current_flag [unique, name: 'uq_semesters_tenant_current']
+    }
+
+    Note: '학기 — 현재 학기 표시(GET /settings/operation.current_semester) + v2 학기별 통계'
+}
+
 // ─── 마이그레이션 추적 (dbmate) ──────────────────────────────────────────────
 
 Table schema_migrations {
@@ -497,6 +520,7 @@ Ref: settings.tenant_id > academies.id [delete: restrict]
 Ref: ability_tracks.tenant_id > academies.id [delete: restrict]
 Ref: student_abilities.tenant_id > academies.id [delete: restrict]
 Ref: uploads.tenant_id > academies.id [delete: restrict]
+Ref: semesters.tenant_id > academies.id [delete: restrict]
 
 // 인증
 Ref: refresh_tokens.user_account_id > user_accounts.id [delete: cascade]
