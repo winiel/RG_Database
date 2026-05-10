@@ -13,12 +13,15 @@
 -- 본 스크립트는 로컬 Dev 기준. Stg/Prod 적용 시 호스트 부분을 반드시 변경할 것.
 -- ============================================================================
 
--- 패스워드는 환경 변수 또는 Secrets Manager에서 주입 권장.
--- 로컬 Dev 임시 패스워드(예시) — 실제 운영에서는 절대 평문 commit 금지.
-SET @app_password = 'app_local_only_change_me';
+-- ⚠️ MySQL의 CREATE USER ... IDENTIFIED BY는 user variable(@var)을 받지 못함.
+-- 본 파일은 로컬 Dev 임시 패스워드 literal 사용. Stg/Prod는 Secrets Manager에서
+-- envsubst 등으로 placeholder를 치환한 임시 SQL을 만들어 적용 권장.
+--
+-- 로컬 Dev 임시 패스워드 (실제 운영에서는 절대 평문 commit 금지):
+--   projectrg_app = 'app_local_only_change_me'
 
 DROP USER IF EXISTS 'projectrg_app'@'%';
-CREATE USER 'projectrg_app'@'%' IDENTIFIED BY @app_password;
+CREATE USER 'projectrg_app'@'%' IDENTIFIED BY 'app_local_only_change_me';
 
 GRANT SELECT, INSERT, UPDATE, DELETE
     ON ProjectRG_Dev.*

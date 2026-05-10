@@ -9,10 +9,15 @@
 -- ⚠️ 글로벌 권한(SUPER/RELOAD/SHUTDOWN)은 부여하지 않음 (DB 단위 ALL만)
 -- ============================================================================
 
-SET @migrator_password = 'migrator_local_only_change_me';
+-- ⚠️ MySQL의 CREATE USER ... IDENTIFIED BY는 user variable(@var)을 받지 못함.
+-- 본 파일은 로컬 Dev 임시 패스워드 literal 사용. Stg/Prod는 Secrets Manager에서
+-- envsubst 등으로 placeholder를 치환한 임시 SQL을 만들어 적용 권장.
+--
+-- 로컬 Dev 임시 패스워드:
+--   projectrg_migrator = 'migrator_local_only_change_me'
 
 DROP USER IF EXISTS 'projectrg_migrator'@'%';
-CREATE USER 'projectrg_migrator'@'%' IDENTIFIED BY @migrator_password;
+CREATE USER 'projectrg_migrator'@'%' IDENTIFIED BY 'migrator_local_only_change_me';
 
 GRANT ALL PRIVILEGES
     ON ProjectRG_Dev.*

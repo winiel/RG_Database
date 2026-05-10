@@ -1,0 +1,534 @@
+// ============================================================================
+// ProjectRG — Phase 1 Initial Schema (DBML)
+//
+// dbdiagram.io에 import하면 ERD 시각화 가능. https://dbdiagram.io/d
+// 진실 원천:   winiel/RG_Database/schema/schema.sql
+// 회신 명세서: winiel/RG_Common/Document/RG_Database/2026-05-10-database-response-to-backend.md
+//
+// 정책 요약:
+//   * Engine: MySQL 8.0+ (Aurora MySQL 3 호환)
+//   * Charset: utf8mb4_0900_ai_ci
+//   * PK:  binary(16) UUID — 앱(백엔드) 측 생성 (UUIDv7 권장)
+//   * FK:  100% 미사용 (회신 §3-4) — 본 파일의 Ref는 시각화 전용 논리 참조
+//   * 멀티테넌시: 모든 도메인 테이블 tenant_id NOT NULL + 인덱스 첫 컬럼
+// ============================================================================
+
+Project ProjectRG {
+    database_type: 'MySQL'
+    Note: '''
+        ProjectRG database schema — Phase 1.
+        FK는 DB에 선언되지 않습니다 (앱+CI 검증). 본 ERD의 Ref는 시각화 전용입니다.
+    '''
+}
+
+TableGroup auth_tenancy [color: #3b82f6] {
+    academies
+    user_accounts
+    refresh_tokens
+}
+
+TableGroup students_notes [color: #10b981] {
+    students
+    student_notes
+}
+
+TableGroup classes_master [color: #f59e0b] {
+    subjects
+    rooms
+    teachers
+    classes
+    student_classes
+    holidays
+}
+
+TableGroup attendance_vision [color: #8b5cf6] {
+    attendances
+    vision_verifications
+}
+
+TableGroup payments_events [color: #ef4444] {
+    payments
+    payment_events
+}
+
+TableGroup notifications_settings [color: #06b6d4] {
+    message_templates
+    settings
+}
+
+TableGroup abilities [color: #ec4899] {
+    ability_tracks
+    student_abilities
+}
+
+TableGroup uploads_meta [color: #6b7280] {
+    uploads
+}
+
+TableGroup migration_meta [color: #9ca3af] {
+    schema_migrations
+}
+
+// ─── §4.1 인증/테넌시 ─────────────────────────────────────────────────────────
+
+Table academies {
+    id binary(16) [pk, note: 'UUID — 앱 측 생성']
+    name varchar(100) [not null]
+    business_number varchar(20) [not null, unique]
+    address varchar(255)
+    phone varchar(20)
+    email varchar(255)
+    logo_url varchar(500)
+    operating_hours json [note: 'JSON: {mon: "10:00-22:00", ...}']
+    created_at datetime [not null, default: 'CURRENT_TIMESTAMP']
+    updated_at datetime [not null, default: 'CURRENT_TIMESTAMP ON UPDATE']
+
+    Note: '학원/테넌트 — 멀티테넌시 루트. 자기 자신이 테넌트라 tenant_id 컬럼 없음. 다른 테이블의 tenant_id는 academies.id를 가리키는 논리 참조'
+}
+
+Table user_accounts {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    email varchar(255) [not null, unique]
+    password_hash varchar(255) [not null]
+    name varchar(100) [not null]
+    phone varchar(20)
+    role varchar(20) [not null, default: 'owner', note: 'CHECK: owner']
+    last_login_at datetime
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        tenant_id [name: 'idx_user_accounts_tenant_id']
+    }
+
+    Note: '학원장 로그인 계정. MVP는 role=owner 단일'
+}
+
+Table refresh_tokens {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    user_account_id binary(16) [not null]
+    token_hash varchar(255) [not null, unique]
+    expires_at datetime [not null]
+    revoked_at datetime
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, user_account_id) [name: 'idx_refresh_tokens_tenant_id_user_account_id']
+        expires_at [name: 'idx_refresh_tokens_expires_at']
+    }
+
+    Note: 'JWT refresh token 폐기 추적. 만료/탈취 대응'
+}
+
+// ─── §4.2 학생/메모 ──────────────────────────────────────────────────────────
+
+Table students {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    name varchar(100) [not null]
+    birth_date date
+    school_name varchar(100)
+    grade varchar(20)
+    profile_image_url varchar(500)
+    address varchar(255)
+    registered_at datetime [not null, default: 'CURRENT_TIMESTAMP']
+    status varchar(20) [not null, default: 'active', note: 'CHECK: active|paused|withdrawn']
+    parent json [note: 'JSON: {name, relation, phone, ...}']
+    parent_name varchar(100) [note: '학부모명 평탄화 (검색용)']
+    parent_phone varchar(20) [note: '학부모 전화 평탄화 (lookup용)']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, status) [name: 'idx_students_tenant_id_status']
+        (tenant_id, parent_phone) [name: 'idx_students_tenant_id_parent_phone']
+        (tenant_id, name) [name: 'idx_students_tenant_id_name']
+    }
+
+    Note: '학생'
+}
+
+Table student_notes {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    student_id binary(16) [not null]
+    content text
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, student_id) [unique, name: 'uq_student_notes_tenant_id_student_id']
+    }
+
+    Note: '학원장 메모 (학생 1:1)'
+}
+
+// ─── §4.3 클래스/강사/마스터 ─────────────────────────────────────────────────
+
+Table subjects {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    name varchar(50) [not null]
+    color_token varchar(30) [note: 'UI 색상 토큰']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, name) [unique, name: 'uq_subjects_tenant_id_name']
+    }
+
+    Note: '종목 마스터'
+}
+
+Table rooms {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    name varchar(50) [not null]
+    description varchar(255)
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, name) [unique, name: 'uq_rooms_tenant_id_name']
+    }
+
+    Note: '강의실 마스터'
+}
+
+Table teachers {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    name varchar(100) [not null]
+    subject_id binary(16) [note: '주 종목 (NULL 허용)']
+    profile_image_url varchar(500)
+    phone varchar(20)
+    email varchar(255)
+    employment_type varchar(20) [not null, default: 'full_time', note: 'CHECK: full_time|part_time|contract']
+    hourly_rate decimal(10,2)
+    joined_at datetime [not null, default: 'CURRENT_TIMESTAMP']
+    status varchar(20) [not null, default: 'active', note: 'CHECK: active|inactive|resigned']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, status) [name: 'idx_teachers_tenant_id_status']
+        (tenant_id, subject_id) [name: 'idx_teachers_tenant_id_subject_id']
+    }
+
+    Note: '강사'
+}
+
+Table classes {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    name varchar(100) [not null]
+    subject_id binary(16)
+    teacher_id binary(16)
+    room_id binary(16) [note: 'NULL 허용 (강의실 미지정)']
+    days_of_week json [note: 'JSON: ISO 요일 배열 [1,3,5] = 월수금']
+    start_time time
+    end_time time
+    capacity int [note: 'unsigned, 정원']
+    status varchar(20) [not null, default: 'active', note: 'CHECK: active|paused|ended']
+    started_at datetime
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, status) [name: 'idx_classes_tenant_id_status']
+        (tenant_id, subject_id) [name: 'idx_classes_tenant_id_subject_id']
+        (tenant_id, teacher_id) [name: 'idx_classes_tenant_id_teacher_id']
+        (tenant_id, room_id) [name: 'idx_classes_tenant_id_room_id']
+    }
+
+    Note: '클래스'
+}
+
+Table student_classes {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    student_id binary(16) [not null]
+    class_id binary(16) [not null]
+    enrolled_at datetime [not null, default: 'CURRENT_TIMESTAMP']
+    unenrolled_at datetime
+    status varchar(20) [not null, default: 'active', note: 'CHECK: active|unenrolled|completed']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, student_id, class_id) [unique, name: 'uq_student_classes_tenant_id_student_id_class_id']
+        (tenant_id, class_id) [name: 'idx_student_classes_tenant_id_class_id']
+    }
+
+    Note: '학생-클래스 등록 (N:M)'
+}
+
+Table holidays {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    date date [not null]
+    name varchar(100) [not null]
+    type varchar(20) [not null, default: 'academy', note: 'CHECK: public|academy|special']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, date) [unique, name: 'uq_holidays_tenant_id_date']
+    }
+
+    Note: '휴무일'
+}
+
+// ─── §4.4 출결/Vision ────────────────────────────────────────────────────────
+
+Table vision_verifications {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    student_id binary(16) [not null]
+    image_url varchar(500) [not null]
+    confidence decimal(5,4) [note: 'CHECK: 0~1, NULL 허용']
+    verified_at datetime [not null, default: 'CURRENT_TIMESTAMP']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, student_id, verified_at) [name: 'idx_vision_verifications_tenant_id_student_id_verified_at']
+    }
+
+    Note: 'Vision AI 인증 결과 (별도 모듈에서 INSERT)'
+}
+
+Table attendances {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    student_id binary(16) [not null]
+    class_id binary(16) [not null]
+    date date [not null]
+    attendance_status varchar(20) [not null, note: 'CHECK: present|late|absent|excused']
+    check_in_at datetime [note: 'present/late일 때만 채움']
+    vision_verification_id binary(16) [note: 'NULL 허용 (Vision 미사용 출결)']
+    absence_reason varchar(255)
+    absence_category varchar(20) [note: 'CHECK: NULL or sick|family|travel|other']
+    is_absence_notified_in_advance boolean [not null, default: 'FALSE']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, student_id, class_id, date) [unique, name: 'uq_attendances_tenant_id_student_id_class_id_date']
+        (tenant_id, class_id, date) [name: 'idx_attendances_tenant_id_class_id_date']
+        (tenant_id, student_id, date) [name: 'idx_attendances_tenant_id_student_id_date']
+    }
+
+    Note: '출결'
+}
+
+// ─── §4.5 결제/이력 ──────────────────────────────────────────────────────────
+
+Table payments {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    student_id binary(16) [not null]
+    class_id binary(16) [note: 'NULL 허용 (전체 학원비 등)']
+    billing_item varchar(100) [not null]
+    billing_breakdown json [note: 'JSON: {tuition, discount, extra, ...}']
+    amount decimal(12,2) [not null, note: 'CHECK: >= 0']
+    billing_date date [not null]
+    due_date date
+    paid_date date
+    payment_method varchar(20) [note: 'CHECK: NULL or cash|card|transfer|auto_debit']
+    payment_status varchar(20) [not null, default: 'pending', note: 'CHECK: pending|paid|overdue|cancelled|refunded']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, billing_date) [name: 'idx_payments_tenant_id_billing_date']
+        (tenant_id, student_id) [name: 'idx_payments_tenant_id_student_id']
+        (tenant_id, payment_status) [name: 'idx_payments_tenant_id_status']
+        (tenant_id, due_date) [name: 'idx_payments_tenant_id_due_date']
+    }
+
+    Note: '결제. 매일 자정 배치로 pending → overdue 전환'
+}
+
+Table payment_events {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    payment_id binary(16) [not null]
+    event_type varchar(30) [not null, note: 'CHECK: created|paid|overdue_marked|cancelled|refunded|reminder_sent|note_added']
+    event_data json
+    occurred_at datetime [not null, default: 'CURRENT_TIMESTAMP']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, payment_id, occurred_at) [name: 'idx_payment_events_tenant_id_payment_id_occurred_at']
+    }
+
+    Note: '결제 이력 타임라인'
+}
+
+// ─── §4.6 알림/설정 ──────────────────────────────────────────────────────────
+
+Table message_templates {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    template_type varchar(50) [not null]
+    channel varchar(20) [not null, note: 'CHECK: sms|email|push|kakao']
+    title varchar(200)
+    body text [not null]
+    is_enabled boolean [not null, default: 'TRUE']
+    timing_config json [note: 'JSON: 발송 시점 설정']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, template_type, channel) [unique, name: 'uq_message_templates_tenant_id_type_channel']
+    }
+
+    Note: '알림 템플릿'
+}
+
+Table settings {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null, unique]
+    payment_settings json
+    notification_settings json
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Note: '학원 설정 (1:1, 학원당 단일 행)'
+}
+
+// ─── §4.7 능력치 ────────────────────────────────────────────────────────────
+
+Table ability_tracks {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    name varchar(100) [not null]
+    subject_id binary(16) [note: '종목별 트랙 분리']
+    description varchar(500)
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, name) [unique, name: 'uq_ability_tracks_tenant_id_name']
+        (tenant_id, subject_id) [name: 'idx_ability_tracks_tenant_id_subject_id']
+    }
+
+    Note: '능력치 트랙 마스터'
+}
+
+Table student_abilities {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    student_id binary(16) [not null]
+    ability_track_id binary(16) [not null]
+    score decimal(5,2) [not null, note: 'CHECK: 0~100']
+    evaluated_at datetime [not null, default: 'CURRENT_TIMESTAMP']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, student_id, ability_track_id) [unique, name: 'uq_student_abilities_tenant_id_student_id_track_id']
+        (tenant_id, student_id) [name: 'idx_student_abilities_tenant_id_student_id']
+    }
+
+    Note: '학생별 능력치 평가'
+}
+
+// ─── §4.8 업로드 메타 ────────────────────────────────────────────────────────
+
+Table uploads {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    purpose varchar(50) [not null, note: 'CHECK: student_profile|teacher_profile|academy_logo|vision_image|other']
+    object_key varchar(500) [not null, unique]
+    original_filename varchar(255)
+    content_type varchar(100)
+    byte_size bigint [note: 'unsigned']
+    upload_status varchar(20) [not null, default: 'pending', note: 'CHECK: pending|uploading|processing|completed|failed']
+    processed_url varchar(500)
+    thumbnail_url varchar(500)
+    created_by_user_account_id binary(16)
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, purpose) [name: 'idx_uploads_tenant_id_purpose']
+        (tenant_id, upload_status) [name: 'idx_uploads_tenant_id_status']
+    }
+
+    Note: '업로드 메타 (presigned URL 추적). 후처리 상태 머신'
+}
+
+// ─── 마이그레이션 추적 (dbmate) ──────────────────────────────────────────────
+
+Table schema_migrations {
+    version varchar(255) [pk, note: 'YYYYMMDDHHMMSS 형식']
+
+    Note: 'dbmate 자동 관리. 적용된 마이그레이션 버전 추적'
+}
+
+// ============================================================================
+// Refs (시각화 전용 — 회신 §3-4 정책에 따라 DB에는 FK 미선언)
+// ON DELETE 의도는 회신 §3-4.3 표 참조 (앱 트랜잭션에서 처리)
+// ============================================================================
+
+// 멀티테넌시 (모든 도메인 → academies)
+Ref: user_accounts.tenant_id > academies.id [delete: restrict]
+Ref: refresh_tokens.tenant_id > academies.id [delete: restrict]
+Ref: students.tenant_id > academies.id [delete: restrict]
+Ref: student_notes.tenant_id > academies.id [delete: restrict]
+Ref: subjects.tenant_id > academies.id [delete: restrict]
+Ref: rooms.tenant_id > academies.id [delete: restrict]
+Ref: teachers.tenant_id > academies.id [delete: restrict]
+Ref: classes.tenant_id > academies.id [delete: restrict]
+Ref: student_classes.tenant_id > academies.id [delete: restrict]
+Ref: holidays.tenant_id > academies.id [delete: restrict]
+Ref: attendances.tenant_id > academies.id [delete: restrict]
+Ref: vision_verifications.tenant_id > academies.id [delete: restrict]
+Ref: payments.tenant_id > academies.id [delete: restrict]
+Ref: payment_events.tenant_id > academies.id [delete: restrict]
+Ref: message_templates.tenant_id > academies.id [delete: restrict]
+Ref: settings.tenant_id > academies.id [delete: restrict]
+Ref: ability_tracks.tenant_id > academies.id [delete: restrict]
+Ref: student_abilities.tenant_id > academies.id [delete: restrict]
+Ref: uploads.tenant_id > academies.id [delete: restrict]
+
+// 인증
+Ref: refresh_tokens.user_account_id > user_accounts.id [delete: cascade]
+
+// 학생 → 부속
+Ref: student_notes.student_id > students.id [delete: cascade]
+Ref: student_classes.student_id > students.id [delete: cascade]
+Ref: student_abilities.student_id > students.id [delete: cascade]
+Ref: attendances.student_id > students.id [delete: restrict]
+Ref: payments.student_id > students.id [delete: restrict]
+Ref: vision_verifications.student_id > students.id [delete: restrict]
+
+// 클래스
+Ref: student_classes.class_id > classes.id [delete: cascade]
+Ref: attendances.class_id > classes.id [delete: restrict]
+Ref: payments.class_id > classes.id [delete: restrict]
+Ref: classes.subject_id > subjects.id [delete: restrict]
+Ref: classes.teacher_id > teachers.id [delete: restrict]
+Ref: classes.room_id > rooms.id [delete: set null]
+
+// 강사
+Ref: teachers.subject_id > subjects.id [delete: restrict]
+
+// 결제
+Ref: payment_events.payment_id > payments.id [delete: cascade]
+
+// 출결-Vision
+Ref: attendances.vision_verification_id > vision_verifications.id [delete: set null]
+
+// 능력치
+Ref: ability_tracks.subject_id > subjects.id [delete: restrict]
+Ref: student_abilities.ability_track_id > ability_tracks.id [delete: cascade]
+
+// 업로드
+Ref: uploads.created_by_user_account_id > user_accounts.id [delete: set null]
