@@ -72,9 +72,13 @@ dbmate 도입 후에는 `dbmate up` / `dbmate dump` 한 줄로 대체 예정.
 ## 작업 흐름
 
 1. 신규 마이그레이션 → `migrations/YYYYMMDDHHMMSS_<name>.sql` 추가 (`-- migrate:up` / `-- migrate:down` 섹션 의무)
-2. dev 브랜치에서 적용·검증 → `schema/schema.sql` 자동 갱신
-3. `RG_Common/Document/RG_Database/schema-changes-log.md`에 변경 누적 기록 (회신 §6 컨벤션)
-4. PR 생성 → 백엔드 측 합의 → main 머지
+2. dev 브랜치에서 적용·검증 → `schema/schema.sql` 갱신 (mysqldump)
+3. **`schema/schema.sql` ↔ `RG_Common/Document/RG_Database/schema.sql` 동기**
+   - 본 레포가 진실 원천. RG_Common 사본은 백엔드 공유용 스냅샷
+   - byte-identical 복사 의무 (`cp schema/schema.sql ../RG_Common/Document/RG_Database/schema.sql && diff` 검증)
+   - schema 변경 commit과 같은 시점에 RG_Common dev에도 push
+4. `RG_Common/Document/RG_Database/schema-changes-log.md`에 변경 누적 기록 (회신 §6 컨벤션)
+5. PR 생성 → 백엔드 측 합의 → main 머지
 
 ## 참고
 
