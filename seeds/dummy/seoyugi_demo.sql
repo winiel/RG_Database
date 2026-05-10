@@ -14,7 +14,9 @@
 --   * 결제 이력 (payment_events): created 모두 + paid는 paid 이벤트
 --   * 출석 2026-01-01 ~ 2026-05-10 클래스 운영 요일별
 --     - 80% present / 10% late / 5% absent / 5% excused
+--     - absence_category: sick/family/travel/school/other 5종 균등 분포 (CRC32 기반)
 --   * 설정 (settings) 1행
+--   * 학기 (semesters) 2건 — 2026-1학기 (현재) / 2026-2학기
 -- ============================================================================
 
 USE ProjectRG_Dev;
@@ -32,6 +34,7 @@ DELETE FROM ability_tracks;
 DELETE FROM uploads;
 DELETE FROM message_templates;
 DELETE FROM settings;
+DELETE FROM semesters;
 DELETE FROM holidays;
 DELETE FROM student_classes;
 DELETE FROM student_notes;
@@ -75,6 +78,13 @@ INSERT INTO settings (id, tenant_id, payment_settings, notification_settings)
 VALUES (UUID_TO_BIN(UUID(), 1), @academy_id,
   JSON_OBJECT('billing_day', 1, 'due_day', 10, 'overdue_grace_days', 3),
   JSON_OBJECT('sms_enabled', TRUE, 'kakao_enabled', TRUE, 'email_enabled', FALSE));
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 3.1 학기 (semesters) — 2026-1학기(현재) + 2026-2학기
+-- ─────────────────────────────────────────────────────────────────────────────
+INSERT INTO semesters (id, tenant_id, name, starts_on, ends_on, is_current, description) VALUES
+  (UUID_TO_BIN(UUID(), 1), @academy_id, '2026-1학기', '2026-03-01', '2026-08-31', TRUE,  '봄·여름학기'),
+  (UUID_TO_BIN(UUID(), 1), @academy_id, '2026-2학기', '2026-09-01', '2027-02-28', FALSE, '가을·겨울학기');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 4. 과목 (3개)
@@ -283,8 +293,8 @@ SELECT
     END AS absence_reason,
     CASE
         WHEN MOD(CRC32(CONCAT(BIN_TO_UUID(sc.student_id,1), BIN_TO_UUID(sc.class_id,1), dt.d)), 100) >= 90
-            THEN ELT(MOD(CRC32(CONCAT('cat', BIN_TO_UUID(sc.student_id,1), dt.d)), 4) + 1,
-                     'sick', 'family', 'travel', 'other')
+            THEN ELT(MOD(CRC32(CONCAT('cat', BIN_TO_UUID(sc.student_id,1), dt.d)), 5) + 1,
+                     'sick', 'family', 'travel', 'school', 'other')
         ELSE NULL
     END AS absence_category,
     CASE
@@ -313,4 +323,5 @@ UNION ALL SELECT 'students',          COUNT(*) FROM students          WHERE tena
 UNION ALL SELECT 'student_classes',   COUNT(*) FROM student_classes   WHERE tenant_id = @academy_id
 UNION ALL SELECT 'payments',          COUNT(*) FROM payments          WHERE tenant_id = @academy_id
 UNION ALL SELECT 'payment_events',    COUNT(*) FROM payment_events    WHERE tenant_id = @academy_id
-UNION ALL SELECT 'attendances',       COUNT(*) FROM attendances       WHERE tenant_id = @academy_id;
+UNION ALL SELECT 'attendances',       COUNT(*) FROM attendances       WHERE tenant_id = @academy_id
+UNION ALL SELECT 'semesters',         COUNT(*) FROM semesters         WHERE tenant_id = @academy_id;

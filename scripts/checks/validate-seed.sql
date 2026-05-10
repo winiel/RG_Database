@@ -57,7 +57,8 @@ INSERT INTO rg_validation (category, check_name, violations) VALUES
     ('orphan', 'settings.tenant_id',               (SELECT COUNT(*) FROM settings t             LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL)),
     ('orphan', 'ability_tracks.tenant_id',         (SELECT COUNT(*) FROM ability_tracks t       LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL)),
     ('orphan', 'student_abilities.tenant_id',      (SELECT COUNT(*) FROM student_abilities t    LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL)),
-    ('orphan', 'uploads.tenant_id',                (SELECT COUNT(*) FROM uploads t              LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL));
+    ('orphan', 'uploads.tenant_id',                (SELECT COUNT(*) FROM uploads t              LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL)),
+    ('orphan', 'semesters.tenant_id',              (SELECT COUNT(*) FROM semesters t            LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL));
 
 INSERT INTO rg_validation (category, check_name, violations) VALUES
     ('orphan', 'refresh_tokens.user_account_id',       (SELECT COUNT(*) FROM refresh_tokens t LEFT JOIN user_accounts u ON u.id = t.user_account_id WHERE u.id IS NULL)),
@@ -143,7 +144,23 @@ INSERT INTO rg_validation (category, check_name, violations) VALUES
     ('business', 'duplicate student_classes',
         (SELECT COUNT(*) - COUNT(DISTINCT CONCAT(HEX(tenant_id),HEX(student_id),HEX(class_id))) FROM student_classes)),
     ('business', 'duplicate attendances',
-        (SELECT COUNT(*) - COUNT(DISTINCT CONCAT(HEX(tenant_id),HEX(student_id),HEX(class_id),`date`)) FROM attendances));
+        (SELECT COUNT(*) - COUNT(DISTINCT CONCAT(HEX(tenant_id),HEX(student_id),HEX(class_id),`date`)) FROM attendances)),
+    -- semesters: 학원당 is_current=TRUE 가 최대 1개 (generated column UNIQUE로 보장. 명시적 검증)
+    ('business', 'multiple is_current semesters per tenant',
+        (SELECT COUNT(*) FROM (
+            SELECT tenant_id FROM semesters WHERE is_current = TRUE
+            GROUP BY tenant_id HAVING COUNT(*) > 1
+        ) multi)),
+    -- semesters: 학기가 있는 학원은 정확히 1개의 is_current=TRUE 학기를 가져야 함
+    ('business', 'tenant with semesters but no current',
+        (SELECT COUNT(*) FROM (
+            SELECT tenant_id FROM semesters
+            GROUP BY tenant_id
+            HAVING SUM(CASE WHEN is_current = TRUE THEN 1 ELSE 0 END) = 0
+        ) no_current)),
+    -- semesters: starts_on > ends_on (CHECK가 잡지만 명시)
+    ('business', 'semester starts_on > ends_on',
+        (SELECT COUNT(*) FROM semesters WHERE starts_on > ends_on));
 
 -- ----------------------------------------------------------------------------
 -- 4. PLAUSIBILITY — 미래 일자, 정원, 해시 형식 등

@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-158';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-460';
 
 --
 -- Table structure for table `ability_tracks`
@@ -83,7 +83,7 @@ CREATE TABLE `attendances` (
   UNIQUE KEY `uq_attendances_tenant_id_student_id_class_id_date` (`tenant_id`,`student_id`,`class_id`,`date`),
   KEY `idx_attendances_tenant_id_class_id_date` (`tenant_id`,`class_id`,`date`),
   KEY `idx_attendances_tenant_id_student_id_date` (`tenant_id`,`student_id`,`date`),
-  CONSTRAINT `chk_attendances_absence_category` CHECK (((`absence_category` is null) or (`absence_category` in (_utf8mb4'sick',_utf8mb4'family',_utf8mb4'travel',_utf8mb4'other')))),
+  CONSTRAINT `chk_attendances_absence_category` CHECK (((`absence_category` is null) or (`absence_category` in (_utf8mb4'sick',_utf8mb4'family',_utf8mb4'travel',_utf8mb4'school',_utf8mb4'other')))),
   CONSTRAINT `chk_attendances_status` CHECK ((`attendance_status` in (_utf8mb4'present',_utf8mb4'late',_utf8mb4'absent',_utf8mb4'excused')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -263,6 +263,30 @@ CREATE TABLE `rooms` (
 CREATE TABLE `schema_migrations` (
   `version` varchar(255) NOT NULL,
   PRIMARY KEY (`version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `semesters`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `semesters` (
+  `id` binary(16) NOT NULL,
+  `tenant_id` binary(16) NOT NULL,
+  `name` varchar(40) NOT NULL,
+  `starts_on` date NOT NULL,
+  `ends_on` date NOT NULL,
+  `is_current` tinyint(1) NOT NULL DEFAULT '0',
+  `description` varchar(200) DEFAULT NULL,
+  `current_flag` binary(16) GENERATED ALWAYS AS (if((`is_current` = true),`tenant_id`,NULL)) VIRTUAL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_semesters_tenant_current` (`current_flag`),
+  KEY `idx_semesters_tenant_id_starts_on` (`tenant_id`,`starts_on`),
+  CONSTRAINT `chk_semesters_date_range` CHECK ((`ends_on` >= `starts_on`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -519,5 +543,7 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 
 LOCK TABLES `schema_migrations` WRITE;
 INSERT INTO `schema_migrations` (version) VALUES
-  ('20260510000001');
+  ('20260510000001'),
+  ('20260510105848'),
+  ('20260510105849');
 UNLOCK TABLES;
