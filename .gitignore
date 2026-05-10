@@ -1,0 +1,24 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local data / dumps
+*.dump
+*.sql.gz
+schema.local.sql
+backups/
+
+# AI
+.ai/
+.claude/
