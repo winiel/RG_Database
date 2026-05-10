@@ -57,17 +57,23 @@ RG_Database/
 # 1. 로컬 MySQL 가동 확인
 mysqladmin -u root ping
 
-# 2. 마이그레이션 적용 (dbmate 도입 전 임시 방식 — up 섹션만 추출)
-awk '/^-- migrate:down/{exit} {print}' migrations/20260510000001_create_initial_schema.sql | mysql -u root
+# 2. 마이그레이션 적용 + schema.sql 갱신 + RG_Common 동기 (한 번에)
+./scripts/sync-schema.sh --apply migrations/20260510000001_create_initial_schema.sql
+
+# 또는 이미 적용된 상태에서 schema.sql만 재생성·동기
+./scripts/sync-schema.sh
 
 # 3. 검증
 mysql -u root -e "USE ProjectRG_Dev; SHOW TABLES;"
-
-# 4. 스키마 스냅샷 갱신 (변경 후)
-mysqldump -u root --no-data --skip-comments --skip-add-drop-table --skip-set-charset --skip-tz-utc --compact ProjectRG_Dev > schema/schema.sql
 ```
 
-dbmate 도입 후에는 `dbmate up` / `dbmate dump` 한 줄로 대체 예정.
+`sync-schema.sh`가 자동으로:
+1. `--apply` 시 마이그레이션 up 섹션을 DB에 적용
+2. `mysqldump` → `schema/schema.sql` 갱신
+3. `RG_Common/Document/RG_Database/schema.sql`로 byte-identical 복사
+4. `diff -q`로 정합성 검증
+
+dbmate 도입(회신 §4-A) 후에는 `dbmate up`이 1·2를 대체하고, 3·4는 후크/래퍼로 통합 예정.
 
 ## 작업 흐름
 
