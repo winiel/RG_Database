@@ -61,9 +61,11 @@ VALUES (@academy_id, '서유기학원', '123-45-67890',
 -- 2. 학원장 계정 (시스템 운영 필수)
 -- ─────────────────────────────────────────────────────────────────────────────
 SET @owner_id = UUID_TO_BIN(UUID(), 1);
+-- 로컬 테스트 계정 — 비밀번호: '1111' (bcrypt $2y$ cost=12, htpasswd 생성)
+-- ⚠️ 실제 운영에서는 절대 사용 금지. Stg/Prod는 백엔드가 가입/관리자 등록 시 신규 해시 생성.
 INSERT INTO user_accounts (id, tenant_id, email, password_hash, name, phone, role, last_login_at)
 VALUES (@owner_id, @academy_id, 'owner@seoyugi.kr',
-  '$2b$12$DEMO.fakehash.NotForProduction.SeoYuGiOwner.20260510',
+  '$2y$12$It3ax8hw2MDNNbB8VBshcOtipO422X4IdNYx0UpFLZ3JRe1XRZJDy',
   '손오공', '010-1111-1111', 'owner', '2026-05-10 09:00:00');
 
 -- ─────────────────────────────────────────────────────────────────────────────
