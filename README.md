@@ -32,6 +32,7 @@ RG_Database/
 │   └── dummy/               # 더미 시드 (옵션, faker)
 ├── scripts/
 │   ├── grants/              # 계정/권한 GRANT SQL
+│   ├── checks/              # 데이터 정합성 검증 (validate-seed.sql/sh)
 │   ├── backup/              # 백업/복구 헬퍼
 │   └── ci/                  # CI 부트스트랩
 ├── docs/
@@ -79,6 +80,24 @@ dbmate dump                             # schema.sql 재생성 (적용 없이)
 1. `dbmate up`: pending 마이그레이션 적용 + `schema/schema.sql` 자동 갱신
 2. `RG_Common/Document/RG_Database/schema.sql`로 byte-identical 복사
 3. `diff -q`로 정합성 검증
+
+### 시드 정합성 검증
+
+```bash
+# 시드 적용 후 (또는 CI 통합 테스트 부트스트랩 후) 실행
+./scripts/checks/validate-seed.sh
+# → 91 checks 실행: orphan / tenancy / business / plausibility / schedule / payment_calc / json_struct
+# → exit 0 = PASS / exit 1 = FAIL (CI 친화)
+```
+
+검증 영역:
+- **orphan** (38) — 참조 무결성 (FK 미사용 정책 하 앱 책임 보강)
+- **tenancy** (18) — 멀티테넌시 cross-table tenant_id 일치
+- **business** (15) — 운영 요일·결제 상태·UNIQUE 등
+- **plausibility** (7) — 미래 일자·정원 초과·해시 형식
+- **schedule** (2) — 강사·강의실 시간 충돌
+- **payment_calc** (4) — 등록당 월별 결제 발생·금액 일치
+- **json_struct** (7) — JSON 컬럼 타입·평탄화 일관성
 
 ## 작업 흐름
 
