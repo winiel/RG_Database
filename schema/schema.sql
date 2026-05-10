@@ -1,3 +1,26 @@
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
+SET @@SESSION.SQL_LOG_BIN= 0;
+
+--
+-- GTID state at the beginning of the backup
+--
+
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-158';
+
+--
+-- Table structure for table `ability_tracks`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `ability_tracks` (
@@ -13,6 +36,11 @@ CREATE TABLE `ability_tracks` (
   KEY `idx_ability_tracks_tenant_id_subject_id` (`tenant_id`,`subject_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `academies`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `academies` (
@@ -30,6 +58,11 @@ CREATE TABLE `academies` (
   UNIQUE KEY `uq_academies_business_number` (`business_number`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `attendances`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `attendances` (
@@ -54,6 +87,11 @@ CREATE TABLE `attendances` (
   CONSTRAINT `chk_attendances_status` CHECK ((`attendance_status` in (_utf8mb4'present',_utf8mb4'late',_utf8mb4'absent',_utf8mb4'excused')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `classes`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `classes` (
@@ -79,6 +117,11 @@ CREATE TABLE `classes` (
   CONSTRAINT `chk_classes_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'paused',_utf8mb4'ended')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `holidays`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `holidays` (
@@ -94,6 +137,11 @@ CREATE TABLE `holidays` (
   CONSTRAINT `chk_holidays_type` CHECK ((`type` in (_utf8mb4'public',_utf8mb4'academy',_utf8mb4'special')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `message_templates`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `message_templates` (
@@ -112,6 +160,11 @@ CREATE TABLE `message_templates` (
   CONSTRAINT `chk_message_templates_channel` CHECK ((`channel` in (_utf8mb4'sms',_utf8mb4'email',_utf8mb4'push',_utf8mb4'kakao')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `payment_events`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `payment_events` (
@@ -128,6 +181,11 @@ CREATE TABLE `payment_events` (
   CONSTRAINT `chk_payment_events_type` CHECK ((`event_type` in (_utf8mb4'created',_utf8mb4'paid',_utf8mb4'overdue_marked',_utf8mb4'cancelled',_utf8mb4'refunded',_utf8mb4'reminder_sent',_utf8mb4'note_added')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `payments`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `payments` (
@@ -155,6 +213,11 @@ CREATE TABLE `payments` (
   CONSTRAINT `chk_payments_status` CHECK ((`payment_status` in (_utf8mb4'pending',_utf8mb4'paid',_utf8mb4'overdue',_utf8mb4'cancelled',_utf8mb4'refunded')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `refresh_tokens`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `refresh_tokens` (
@@ -172,6 +235,11 @@ CREATE TABLE `refresh_tokens` (
   KEY `idx_refresh_tokens_expires_at` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `rooms`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `rooms` (
@@ -185,6 +253,23 @@ CREATE TABLE `rooms` (
   UNIQUE KEY `uq_rooms_tenant_id_name` (`tenant_id`,`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `schema_migrations`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `schema_migrations` (
+  `version` varchar(255) NOT NULL,
+  PRIMARY KEY (`version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `settings`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `settings` (
@@ -198,6 +283,11 @@ CREATE TABLE `settings` (
   UNIQUE KEY `uq_settings_tenant_id` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `student_abilities`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `student_abilities` (
@@ -215,6 +305,11 @@ CREATE TABLE `student_abilities` (
   CONSTRAINT `chk_student_abilities_score` CHECK (((`score` >= 0) and (`score` <= 100)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `student_classes`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `student_classes` (
@@ -233,6 +328,11 @@ CREATE TABLE `student_classes` (
   CONSTRAINT `chk_student_classes_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'unenrolled',_utf8mb4'completed')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `student_notes`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `student_notes` (
@@ -246,6 +346,11 @@ CREATE TABLE `student_notes` (
   UNIQUE KEY `uq_student_notes_tenant_id_student_id` (`tenant_id`,`student_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `students`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `students` (
@@ -271,6 +376,11 @@ CREATE TABLE `students` (
   CONSTRAINT `chk_students_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'paused',_utf8mb4'withdrawn')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `subjects`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `subjects` (
@@ -284,6 +394,11 @@ CREATE TABLE `subjects` (
   UNIQUE KEY `uq_subjects_tenant_id_name` (`tenant_id`,`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `teachers`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `teachers` (
@@ -307,6 +422,11 @@ CREATE TABLE `teachers` (
   CONSTRAINT `chk_teachers_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'inactive',_utf8mb4'resigned')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `uploads`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `uploads` (
@@ -331,6 +451,11 @@ CREATE TABLE `uploads` (
   CONSTRAINT `chk_uploads_status` CHECK ((`upload_status` in (_utf8mb4'pending',_utf8mb4'uploading',_utf8mb4'processing',_utf8mb4'completed',_utf8mb4'failed')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `user_accounts`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_accounts` (
@@ -350,6 +475,11 @@ CREATE TABLE `user_accounts` (
   CONSTRAINT `chk_user_accounts_role` CHECK ((`role` = _utf8mb4'owner'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `vision_verifications`
+--
+
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vision_verifications` (
@@ -366,3 +496,28 @@ CREATE TABLE `vision_verifications` (
   CONSTRAINT `chk_vision_verifications_confidence` CHECK (((`confidence` is null) or ((`confidence` >= 0) and (`confidence` <= 1))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping routines for database 'ProjectRG_Dev'
+--
+SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed
+
+--
+-- Dbmate schema migrations
+--
+
+LOCK TABLES `schema_migrations` WRITE;
+INSERT INTO `schema_migrations` (version) VALUES
+  ('20260510000001');
+UNLOCK TABLES;

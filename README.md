@@ -19,7 +19,7 @@ ProjectRG의 **데이터베이스 개발/관리 영역**.
 | FK | **100% 미사용** — 무결성은 앱+CI 책임 (회신 §3-4) |
 | 시간 | DATETIME UTC 저장 — 인스턴스 `time_zone='+00:00'` 의무 |
 | 멀티테넌시 | 모든 도메인 테이블 `tenant_id` NOT NULL + 인덱스 첫 컬럼 |
-| 마이그레이션 도구 | dbmate (Phase 1 후반 도입 예정) |
+| 마이그레이션 도구 | **dbmate** (회신 §4-A 합의, 도입 완료) |
 
 ## 디렉토리
 
@@ -54,34 +54,39 @@ RG_Database/
 ## 빠른 시작 (로컬)
 
 ```bash
+# 0. 사전 준비 (1회)
+brew install dbmate
+cp .env.example .env                    # 필요 시 DB 접속 정보 수정
+
 # 1. 로컬 MySQL 가동 확인
 mysqladmin -u root ping
 
 # 2. 마이그레이션 적용 + schema.sql 갱신 + RG_Common 동기 (한 번에)
-./scripts/sync-schema.sh --apply migrations/20260510000001_create_initial_schema.sql
+./scripts/sync-schema.sh                # = dbmate up + cp + verify
 
-# 또는 이미 적용된 상태에서 schema.sql만 재생성·동기
-./scripts/sync-schema.sh
+# 3. 새 마이그레이션 작성 (timestamp 자동)
+dbmate new add_some_column              # → migrations/YYYYMMDDHHMMSS_add_some_column.sql 생성
+# (-- migrate:up / -- migrate:down 섹션 작성 후)
+./scripts/sync-schema.sh                # 적용 + 동기
 
-# 3. 검증
-mysql -u root -e "USE ProjectRG_Dev; SHOW TABLES;"
+# 기타 dbmate 명령
+dbmate status                           # 적용 상태 확인 (Applied/Pending)
+dbmate down                             # 가장 최근 마이그레이션 rollback
+dbmate dump                             # schema.sql 재생성 (적용 없이)
 ```
 
 `sync-schema.sh`가 자동으로:
-1. `--apply` 시 마이그레이션 up 섹션을 DB에 적용
-2. `mysqldump` → `schema/schema.sql` 갱신
-3. `RG_Common/Document/RG_Database/schema.sql`로 byte-identical 복사
-4. `diff -q`로 정합성 검증
-
-dbmate 도입(회신 §4-A) 후에는 `dbmate up`이 1·2를 대체하고, 3·4는 후크/래퍼로 통합 예정.
+1. `dbmate up`: pending 마이그레이션 적용 + `schema/schema.sql` 자동 갱신
+2. `RG_Common/Document/RG_Database/schema.sql`로 byte-identical 복사
+3. `diff -q`로 정합성 검증
 
 ## 작업 흐름
 
-1. 신규 마이그레이션 → `migrations/YYYYMMDDHHMMSS_<name>.sql` 추가 (`-- migrate:up` / `-- migrate:down` 섹션 의무)
-2. dev 브랜치에서 적용·검증 → `schema/schema.sql` 갱신 (mysqldump)
+1. 신규 마이그레이션 → `dbmate new <name>` (timestamp 자동, `-- migrate:up` / `-- migrate:down` 템플릿 생성)
+2. up/down 섹션 작성 → `./scripts/sync-schema.sh` (dbmate up + RG_Common 동기 한 번에)
 3. **`schema/schema.sql` ↔ `RG_Common/Document/RG_Database/schema.sql` 동기**
    - 본 레포가 진실 원천. RG_Common 사본은 백엔드 공유용 스냅샷
-   - byte-identical 복사 의무 (`cp schema/schema.sql ../RG_Common/Document/RG_Database/schema.sql && diff` 검증)
+   - byte-identical 복사 의무 — `sync-schema.sh`가 자동으로 cp + diff 검증
    - schema 변경 commit과 같은 시점에 RG_Common dev에도 push
 4. `RG_Common/Document/RG_Database/schema-changes-log.md`에 변경 누적 기록 (회신 §6 컨벤션)
 5. PR 생성 → 백엔드 측 합의 → main 머지
