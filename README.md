@@ -48,9 +48,32 @@ RG_Database/
 | 환경 | DB 이름 | 호스트 |
 |---|---|---|
 | 로컬 | `ProjectRG_Dev` | `127.0.0.1:3306` |
-| AWS Dev | `ProjectRG_Dev` | RDS (Phase 1 후반) |
+| AWS Dev | `ProjectRG_Dev` | `projectrg-dev-db-rds.cbya6us2qc5g.ap-northeast-2.rds.amazonaws.com:3306` (구축 완료, 2026-05-13) |
 | AWS Stg | `ProjectRG_Stg` | RDS (Phase 3) |
 | AWS Prod | `ProjectRG_Prod` | RDS → Aurora MySQL (Phase 4) |
+
+### AWS Dev RDS 접속
+
+```bash
+# 1회 준비
+cp .env.aws-dev.example .env.aws-dev    # 실제 값으로 채움 (gitignored)
+brew install mysql-client@8.4           # MySQL 9.x client 호환 이슈 회피
+export PATH="/usr/local/opt/mysql-client@8.4/bin:$PATH"
+
+# Master 계정 (DDL/dbmate)
+eval "$(./scripts/aws-dev/load-master-secret.sh)"
+dbmate status                            # DATABASE_URL은 자동 설정됨
+mysql -h "$RDS_HOST" -P "$RDS_PORT" -u "$DB_USER" -p"$DB_PASSWORD" --ssl-mode=REQUIRED "$RDS_DB_NAME"
+
+# App 계정 (DML만, 백엔드용) — Secret을 직접 fetch
+APP_SECRET=$(aws secretsmanager get-secret-value --secret-id "$APP_USER_SECRET_ARN" \
+  --profile projectrg --region ap-northeast-2 --query SecretString --output text)
+APP_USER=$(echo "$APP_SECRET" | jq -r .username)
+APP_PASSWORD=$(echo "$APP_SECRET" | jq -r .password)
+mysql -h "$RDS_HOST" -P 3306 -u "$APP_USER" -p"$APP_PASSWORD" --ssl-mode=REQUIRED ProjectRG_Dev
+```
+
+> dev RDS는 퍼블릭 액세스 + Security Group IP whitelist 방식. 새 IP에서 접속하려면 `aws ec2 authorize-security-group-ingress`로 SG에 IP/32 추가. TLS 검증은 dev에서 `skip-verify` 사용 — 운영 시 [AWS RDS Combined CA](https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem) 등록 권장.
 
 ## 빠른 시작 (로컬)
 
