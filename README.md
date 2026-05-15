@@ -48,7 +48,7 @@ RG_Database/
 | 환경 | DB 이름 | 호스트 |
 |---|---|---|
 | 로컬 | `ProjectRG_Dev` | `127.0.0.1:3306` |
-| AWS Dev | `ProjectRG_Dev` | `projectrg-dev-db-rds.cbya6us2qc5g.ap-northeast-2.rds.amazonaws.com:3306` (구축 완료, 2026-05-13) |
+| AWS Dev | `ProjectRG_Dev` | `projectrg-dev-db-rds.cbya6us2qc5g.ap-northeast-2.rds.amazonaws.com:3306` (MySQL 8.4.9, 2026-05-15 업그레이드) |
 | AWS Stg | `ProjectRG_Stg` | RDS (Phase 3) |
 | AWS Prod | `ProjectRG_Prod` | RDS → Aurora MySQL (Phase 4) |
 
