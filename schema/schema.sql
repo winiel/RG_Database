@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-1156';
 
 --
 -- Table structure for table `ability_tracks`
@@ -261,7 +261,7 @@ CREATE TABLE `rooms` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `schema_migrations` (
-  `version` varchar(128) NOT NULL,
+  `version` varchar(255) NOT NULL,
   PRIMARY KEY (`version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -439,6 +439,7 @@ CREATE TABLE `teachers` (
   `status` varchar(20) NOT NULL DEFAULT 'active',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `memo` text COMMENT '강사 내부 메모 (학원장 자유 입력, multi-line)',
   PRIMARY KEY (`id`),
   KEY `idx_teachers_tenant_id_status` (`tenant_id`,`status`),
   KEY `idx_teachers_tenant_id_subject_id` (`tenant_id`,`subject_id`),
@@ -546,5 +547,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260510000001'),
   ('20260510105848'),
   ('20260510105849'),
-  ('20260514074640');
+  ('20260514074640'),
+  ('20260516144831');
 UNLOCK TABLES;

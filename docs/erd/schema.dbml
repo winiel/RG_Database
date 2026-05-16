@@ -211,6 +211,7 @@ Table teachers {
     hourly_rate decimal(10,2)
     joined_at datetime [not null, default: 'CURRENT_TIMESTAMP']
     status varchar(20) [not null, default: 'active', note: 'CHECK: active|inactive|resigned']
+    memo text [note: '학원장 자유 메모 (multi-line 허용)']
     created_at datetime [not null]
     updated_at datetime [not null]
 
