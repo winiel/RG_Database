@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-1156';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-1182';
 
 --
 -- Table structure for table `ability_tracks`
@@ -162,6 +162,38 @@ CREATE TABLE `message_templates` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `payment_adjustments`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `payment_adjustments` (
+  `id` binary(16) NOT NULL,
+  `tenant_id` binary(16) NOT NULL,
+  `student_id` binary(16) NOT NULL,
+  `type` varchar(20) NOT NULL COMMENT '''discount'' = A안 (다음 청구서에서 차감) | ''refund'' = C안 (paid 결제 일부 환급 기록)',
+  `amount` decimal(12,2) NOT NULL COMMENT '학원장 입력값 (KRW 정수 권장. v1 정책상 자유 입력)',
+  `reason` varchar(500) DEFAULT NULL COMMENT '사유 (자유 텍스트, v1)',
+  `period_start` date DEFAULT NULL COMMENT '부재/할인 시작일 (선택, audit 보조)',
+  `period_end` date DEFAULT NULL COMMENT '부재/할인 종료일 (선택)',
+  `target_payment_id` binary(16) DEFAULT NULL COMMENT '''discount'': 적용 대상 (NULL = 다음 미생성 청구서) / ''refund'': 원 결제 id (필수)',
+  `applied_payment_id` binary(16) DEFAULT NULL COMMENT '실제로 적용된 결제 id (pending → applied 전이 시 채워짐)',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '''pending'' | ''applied'' | ''cancelled''',
+  `created_by` binary(16) NOT NULL COMMENT 'user_accounts.id (학원장)',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_payment_adjustments_tenant_id_student_id` (`tenant_id`,`student_id`),
+  KEY `idx_payment_adjustments_tenant_id_target_payment_id` (`tenant_id`,`target_payment_id`),
+  KEY `idx_payment_adjustments_tenant_id_status` (`tenant_id`,`status`),
+  CONSTRAINT `chk_payment_adjustments_amount` CHECK ((`amount` >= 0)),
+  CONSTRAINT `chk_payment_adjustments_period` CHECK (((`period_end` is null) or (`period_start` is null) or (`period_end` >= `period_start`))),
+  CONSTRAINT `chk_payment_adjustments_status` CHECK ((`status` in (_utf8mb4'pending',_utf8mb4'applied',_utf8mb4'cancelled'))),
+  CONSTRAINT `chk_payment_adjustments_type` CHECK ((`type` in (_utf8mb4'discount',_utf8mb4'refund')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `payment_events`
 --
 
@@ -178,7 +210,7 @@ CREATE TABLE `payment_events` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_payment_events_tenant_id_payment_id_occurred_at` (`tenant_id`,`payment_id`,`occurred_at`),
-  CONSTRAINT `chk_payment_events_type` CHECK ((`event_type` in (_utf8mb4'created',_utf8mb4'paid',_utf8mb4'overdue_marked',_utf8mb4'cancelled',_utf8mb4'refunded',_utf8mb4'reminder_sent',_utf8mb4'note_added')))
+  CONSTRAINT `chk_payment_events_type` CHECK ((`event_type` in (_utf8mb4'created',_utf8mb4'paid',_utf8mb4'overdue_marked',_utf8mb4'cancelled',_utf8mb4'refunded',_utf8mb4'reminder_sent',_utf8mb4'note_added',_utf8mb4'adjusted',_utf8mb4'postponed')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -203,6 +235,7 @@ CREATE TABLE `payments` (
   `payment_status` varchar(20) NOT NULL DEFAULT 'pending',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `refunded_amount` decimal(12,2) NOT NULL DEFAULT '0.00' COMMENT '누적 환급 금액 (v1 부분 환급 표현, X 옵션 — Director 채택)',
   PRIMARY KEY (`id`),
   KEY `idx_payments_tenant_id_billing_date` (`tenant_id`,`billing_date`),
   KEY `idx_payments_tenant_id_student_id` (`tenant_id`,`student_id`),
@@ -210,6 +243,7 @@ CREATE TABLE `payments` (
   KEY `idx_payments_tenant_id_due_date` (`tenant_id`,`due_date`),
   CONSTRAINT `chk_payments_amount` CHECK ((`amount` >= 0)),
   CONSTRAINT `chk_payments_method` CHECK (((`payment_method` is null) or (`payment_method` in (_utf8mb4'cash',_utf8mb4'card',_utf8mb4'transfer',_utf8mb4'auto_debit')))),
+  CONSTRAINT `chk_payments_refunded_amount` CHECK (((`refunded_amount` >= 0) and (`refunded_amount` <= `amount`))),
   CONSTRAINT `chk_payments_status` CHECK ((`payment_status` in (_utf8mb4'pending',_utf8mb4'paid',_utf8mb4'overdue',_utf8mb4'cancelled',_utf8mb4'refunded')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -548,5 +582,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260510105848'),
   ('20260510105849'),
   ('20260514074640'),
-  ('20260516144831');
+  ('20260516144831'),
+  ('20260516151748');
 UNLOCK TABLES;

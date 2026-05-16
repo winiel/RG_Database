@@ -49,6 +49,7 @@ TableGroup attendance_vision [color: #8b5cf6] {
 TableGroup payments_events [color: #ef4444] {
     payments
     payment_events
+    payment_adjustments
 }
 
 TableGroup notifications_settings [color: #06b6d4] {
@@ -342,6 +343,7 @@ Table payments {
     paid_date date
     payment_method varchar(20) [note: 'CHECK: NULL or cash|card|transfer|auto_debit']
     payment_status varchar(20) [not null, default: 'pending', note: 'CHECK: pending|paid|overdue|cancelled|refunded']
+    refunded_amount decimal(12,2) [not null, default: 0, note: 'CHECK: 0 <= refunded_amount <= amount. 누적 환급 금액 (v1 부분 환급 X 옵션)']
     created_at datetime [not null]
     updated_at datetime [not null]
 
@@ -359,7 +361,7 @@ Table payment_events {
     id binary(16) [pk]
     tenant_id binary(16) [not null]
     payment_id binary(16) [not null]
-    event_type varchar(30) [not null, note: 'CHECK: created|paid|overdue_marked|cancelled|refunded|reminder_sent|note_added']
+    event_type varchar(30) [not null, note: 'CHECK: created|paid|overdue_marked|cancelled|refunded|reminder_sent|note_added|adjusted|postponed']
     event_data json
     occurred_at datetime [not null, default: 'CURRENT_TIMESTAMP']
     created_at datetime [not null]
@@ -370,6 +372,31 @@ Table payment_events {
     }
 
     Note: '결제 이력 타임라인'
+}
+
+Table payment_adjustments {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    student_id binary(16) [not null]
+    type varchar(20) [not null, note: 'CHECK: discount|refund']
+    amount decimal(12,2) [not null, note: 'CHECK: >= 0. 학원장 입력값 (자유 입력)']
+    reason varchar(500)
+    period_start date [note: '부재/할인 시작일 (선택)']
+    period_end date [note: '부재/할인 종료일 (선택, CHECK: period_end >= period_start)']
+    target_payment_id binary(16) [note: 'discount: 적용 대상 (NULL = 다음 미생성 청구서) / refund: 원 결제 id']
+    applied_payment_id binary(16) [note: '실제로 적용된 결제 id (pending → applied 전이 시)']
+    status varchar(20) [not null, default: 'pending', note: 'CHECK: pending|applied|cancelled']
+    created_by binary(16) [not null, note: 'user_accounts.id (학원장)']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, student_id) [name: 'idx_payment_adjustments_tenant_id_student_id']
+        (tenant_id, target_payment_id) [name: 'idx_payment_adjustments_tenant_id_target_payment_id']
+        (tenant_id, status) [name: 'idx_payment_adjustments_tenant_id_status']
+    }
+
+    Note: '결제 조정 (A 할인 + C 환급 공통 도메인, v1 장부 단계)'
 }
 
 // ─── §4.6 알림/설정 ──────────────────────────────────────────────────────────
