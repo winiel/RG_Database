@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-1182';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-2408';
 
 --
 -- Table structure for table `ability_tracks`
@@ -56,6 +56,50 @@ CREATE TABLE `academies` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_academies_business_number` (`business_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `ai_assistant_audit_log`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ai_assistant_audit_log` (
+  `id` binary(16) NOT NULL,
+  `tenant_id` binary(16) NOT NULL,
+  `user_id` binary(16) NOT NULL COMMENT 'user_accounts.id (학원장)',
+  `session_id` binary(16) NOT NULL COMMENT 'ai_assistant_sessions.id',
+  `utterance` text NOT NULL COMMENT '사용자 발화 원문',
+  `tool_name` varchar(50) DEFAULT NULL COMMENT '호출된 tool 이름. read-only 발화는 NULL',
+  `tool_args` json DEFAULT NULL COMMENT 'tool 인자 (학원장이 confirm한 최종 값)',
+  `result_status` varchar(20) NOT NULL COMMENT '''proposed'' | ''confirmed'' | ''cancelled'' | ''failed'' | ''expired''',
+  `result_data` json DEFAULT NULL COMMENT '응답 row brief 또는 에러 사유',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ai_assistant_audit_log_tenant_id_user_id_created_at` (`tenant_id`,`user_id`,`created_at`),
+  KEY `idx_ai_assistant_audit_log_session_id` (`session_id`),
+  CONSTRAINT `chk_ai_assistant_audit_log_result_status` CHECK ((`result_status` in (_utf8mb4'proposed',_utf8mb4'confirmed',_utf8mb4'cancelled',_utf8mb4'failed',_utf8mb4'expired')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `ai_assistant_sessions`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ai_assistant_sessions` (
+  `id` binary(16) NOT NULL,
+  `tenant_id` binary(16) NOT NULL,
+  `user_id` binary(16) NOT NULL COMMENT 'user_accounts.id (학원장)',
+  `messages` json NOT NULL COMMENT 'Claude 메시지 이력 [{"role","content"},...]',
+  `expires_at` datetime NOT NULL COMMENT 'TTL 만료 시각 (보통 created_at + 24h)',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ai_assistant_sessions_tenant_id_user_id` (`tenant_id`,`user_id`),
+  KEY `idx_ai_assistant_sessions_expires_at` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -583,5 +627,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260510105849'),
   ('20260514074640'),
   ('20260516144831'),
-  ('20260516151748');
+  ('20260516151748'),
+  ('20260520123408');
 UNLOCK TABLES;
