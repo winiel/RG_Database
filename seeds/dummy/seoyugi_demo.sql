@@ -116,19 +116,29 @@ INSERT INTO teachers (id, tenant_id, name, subject_id, phone, email, employment_
   (@teacher_jeo, @academy_id, '저팔계', @subj_math,      '010-2222-2222', 'jeo@seoyugi.kr', 'full_time', 40000.00, '2025-06-01 09:00:00', 'active');
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 7. 클래스 (3개)
+-- 7. 클래스 (5개 — 운영 3 / 휴강 1 / 종료 1)
 --    days_of_week: ISO 요일 (월=1, 화=2, 수=3, 목=4, 금=5, 토=6, 일=7)
+--    백엔드 요청 (2026-05-20 questions-to-database §1.3) 반영
+--    스케줄 충돌 회피: paused/ended 클래스는 토요일 시간대 사용 (운영 클래스는 평일)
 -- ─────────────────────────────────────────────────────────────────────────────
-SET @class_taekwondo = UUID_TO_BIN(UUID(), 1);
-SET @class_math      = UUID_TO_BIN(UUID(), 1);
-SET @class_english   = UUID_TO_BIN(UUID(), 1);
+SET @class_taekwondo        = UUID_TO_BIN(UUID(), 1);
+SET @class_math             = UUID_TO_BIN(UUID(), 1);
+SET @class_english          = UUID_TO_BIN(UUID(), 1);
+SET @class_taekwondo_ended  = UUID_TO_BIN(UUID(), 1);
+SET @class_math_paused      = UUID_TO_BIN(UUID(), 1);
 INSERT INTO classes (id, tenant_id, name, subject_id, teacher_id, room_id, days_of_week, start_time, end_time, capacity, status, started_at) VALUES
-  (@class_taekwondo, @academy_id, '태권도반', @subj_taekwondo, @teacher_sa,  @room_dojang, JSON_ARRAY(1,3,5), '17:00:00', '18:30:00', 15, 'active', '2026-01-02 17:00:00'),
-  (@class_math,      @academy_id, '수학반',   @subj_math,      @teacher_jeo, @room_class,  JSON_ARRAY(2,4),   '18:00:00', '19:30:00', 12, 'active', '2026-01-06 18:00:00'),
-  (@class_english,   @academy_id, '영어반',   @subj_english,   @teacher_jeo, @room_class,  JSON_ARRAY(1,3),   '19:30:00', '21:00:00', 12, 'active', '2026-01-05 19:30:00');
+  (@class_taekwondo,       @academy_id, '태권도반',        @subj_taekwondo, @teacher_sa,  @room_dojang, JSON_ARRAY(1,3,5), '17:00:00', '18:30:00', 15, 'active', '2026-01-02 17:00:00'),
+  (@class_math,            @academy_id, '수학반',          @subj_math,      @teacher_jeo, @room_class,  JSON_ARRAY(2,4),   '18:00:00', '19:30:00', 12, 'active', '2026-01-06 18:00:00'),
+  (@class_english,         @academy_id, '영어반',          @subj_english,   @teacher_jeo, @room_class,  JSON_ARRAY(1,3),   '19:30:00', '21:00:00', 12, 'active', '2026-01-05 19:30:00'),
+  -- 종료 클래스 1건 — ended 필터 검증용 (예: 2025년 운영 후 종료된 토요 태권도반)
+  (@class_taekwondo_ended, @academy_id, '토요 태권도반 (2025)', @subj_taekwondo, @teacher_sa,  @room_dojang, JSON_ARRAY(6), '09:00:00', '10:30:00', 10, 'ended',  '2025-03-01 09:00:00'),
+  -- 휴강 클래스 1건 — paused 필터 / 휴강 카운트 검증용
+  (@class_math_paused,     @academy_id, '토요 심화수학반',   @subj_math,      @teacher_jeo, @room_class,  JSON_ARRAY(6), '14:00:00', '15:30:00', 10, 'paused', '2026-02-01 14:00:00');
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 8. 학생 (10명)
+-- 8. 학생 (13명 — 운영 10 / 휴원 1 / 퇴원 1 / parent NULL 1)
+--    parent JSON: 캐노니컬 (relationship 영어 enum: father/mother/...)
+--    백엔드 요청 (2026-05-20 questions-to-database §1.2, §1.3) 반영
 -- ─────────────────────────────────────────────────────────────────────────────
 SET @s1  = UUID_TO_BIN(UUID(), 1);
 SET @s2  = UUID_TO_BIN(UUID(), 1);
@@ -140,17 +150,26 @@ SET @s7  = UUID_TO_BIN(UUID(), 1);
 SET @s8  = UUID_TO_BIN(UUID(), 1);
 SET @s9  = UUID_TO_BIN(UUID(), 1);
 SET @s10 = UUID_TO_BIN(UUID(), 1);
+SET @s11 = UUID_TO_BIN(UUID(), 1);
+SET @s12 = UUID_TO_BIN(UUID(), 1);
+SET @s13 = UUID_TO_BIN(UUID(), 1);
 INSERT INTO students (id, tenant_id, name, birth_date, school_name, grade, address, registered_at, status, parent, parent_name, parent_phone) VALUES
-  (@s1,  @academy_id, '김민준', '2014-03-15', '강남초등학교', '6', '서울 강남구 역삼동',  '2025-12-20 10:00:00', 'active', JSON_OBJECT('name','김아빠','relation','부','phone','010-3001-0001'), '김아빠', '010-3001-0001'),
-  (@s2,  @academy_id, '이서윤', '2015-07-22', '강남초등학교', '5', '서울 강남구 역삼동',  '2025-12-22 11:00:00', 'active', JSON_OBJECT('name','이엄마','relation','모','phone','010-3001-0002'), '이엄마', '010-3001-0002'),
-  (@s3,  @academy_id, '박지호', '2013-11-08', '강남초등학교', '6', '서울 강남구 삼성동',  '2025-12-23 14:00:00', 'active', JSON_OBJECT('name','박아빠','relation','부','phone','010-3001-0003'), '박아빠', '010-3001-0003'),
-  (@s4,  @academy_id, '최예린', '2016-02-19', '대치초등학교', '4', '서울 강남구 대치동',  '2025-12-26 16:00:00', 'active', JSON_OBJECT('name','최엄마','relation','모','phone','010-3001-0004'), '최엄마', '010-3001-0004'),
-  (@s5,  @academy_id, '정도현', '2014-08-30', '강남초등학교', '6', '서울 강남구 청담동',  '2025-12-27 10:00:00', 'active', JSON_OBJECT('name','정엄마','relation','모','phone','010-3001-0005'), '정엄마', '010-3001-0005'),
-  (@s6,  @academy_id, '강하은', '2015-05-12', '대치초등학교', '5', '서울 강남구 대치동',  '2025-12-28 11:00:00', 'active', JSON_OBJECT('name','강아빠','relation','부','phone','010-3001-0006'), '강아빠', '010-3001-0006'),
-  (@s7,  @academy_id, '윤서준', '2014-12-01', '강남초등학교', '6', '서울 강남구 역삼동',  '2026-01-02 09:00:00', 'active', JSON_OBJECT('name','윤엄마','relation','모','phone','010-3001-0007'), '윤엄마', '010-3001-0007'),
-  (@s8,  @academy_id, '임채원', '2015-09-25', '대치초등학교', '5', '서울 강남구 도곡동',  '2026-01-03 10:00:00', 'active', JSON_OBJECT('name','임아빠','relation','부','phone','010-3001-0008'), '임아빠', '010-3001-0008'),
-  (@s9,  @academy_id, '한지유', '2016-04-17', '강남초등학교', '4', '서울 강남구 삼성동',  '2026-01-05 14:00:00', 'active', JSON_OBJECT('name','한엄마','relation','모','phone','010-3001-0009'), '한엄마', '010-3001-0009'),
-  (@s10, @academy_id, '오민서', '2014-06-08', '강남초등학교', '6', '서울 강남구 청담동',  '2026-01-08 16:00:00', 'active', JSON_OBJECT('name','오아빠','relation','부','phone','010-3001-0010'), '오아빠', '010-3001-0010');
+  (@s1,  @academy_id, '김민준', '2014-03-15', '강남초등학교', '6', '서울 강남구 역삼동',  '2025-12-20 10:00:00', 'active', JSON_OBJECT('name','김아빠','phone','010-3001-0001','relationship','father','email',NULL), '김아빠', '010-3001-0001'),
+  (@s2,  @academy_id, '이서윤', '2015-07-22', '강남초등학교', '5', '서울 강남구 역삼동',  '2025-12-22 11:00:00', 'active', JSON_OBJECT('name','이엄마','phone','010-3001-0002','relationship','mother','email',NULL), '이엄마', '010-3001-0002'),
+  (@s3,  @academy_id, '박지호', '2013-11-08', '강남초등학교', '6', '서울 강남구 삼성동',  '2025-12-23 14:00:00', 'active', JSON_OBJECT('name','박아빠','phone','010-3001-0003','relationship','father','email',NULL), '박아빠', '010-3001-0003'),
+  (@s4,  @academy_id, '최예린', '2016-02-19', '대치초등학교', '4', '서울 강남구 대치동',  '2025-12-26 16:00:00', 'active', JSON_OBJECT('name','최엄마','phone','010-3001-0004','relationship','mother','email',NULL), '최엄마', '010-3001-0004'),
+  (@s5,  @academy_id, '정도현', '2014-08-30', '강남초등학교', '6', '서울 강남구 청담동',  '2025-12-27 10:00:00', 'active', JSON_OBJECT('name','정엄마','phone','010-3001-0005','relationship','mother','email',NULL), '정엄마', '010-3001-0005'),
+  (@s6,  @academy_id, '강하은', '2015-05-12', '대치초등학교', '5', '서울 강남구 대치동',  '2025-12-28 11:00:00', 'active', JSON_OBJECT('name','강아빠','phone','010-3001-0006','relationship','father','email',NULL), '강아빠', '010-3001-0006'),
+  (@s7,  @academy_id, '윤서준', '2014-12-01', '강남초등학교', '6', '서울 강남구 역삼동',  '2026-01-02 09:00:00', 'active', JSON_OBJECT('name','윤엄마','phone','010-3001-0007','relationship','mother','email',NULL), '윤엄마', '010-3001-0007'),
+  (@s8,  @academy_id, '임채원', '2015-09-25', '대치초등학교', '5', '서울 강남구 도곡동',  '2026-01-03 10:00:00', 'active', JSON_OBJECT('name','임아빠','phone','010-3001-0008','relationship','father','email',NULL), '임아빠', '010-3001-0008'),
+  (@s9,  @academy_id, '한지유', '2016-04-17', '강남초등학교', '4', '서울 강남구 삼성동',  '2026-01-05 14:00:00', 'active', JSON_OBJECT('name','한엄마','phone','010-3001-0009','relationship','mother','email',NULL), '한엄마', '010-3001-0009'),
+  (@s10, @academy_id, '오민서', '2014-06-08', '강남초등학교', '6', '서울 강남구 청담동',  '2026-01-08 16:00:00', 'active', JSON_OBJECT('name','오아빠','phone','010-3001-0010','relationship','father','email',NULL), '오아빠', '010-3001-0010'),
+  -- 휴원 학생 1명 — paused 상태 필터 검증용
+  (@s11, @academy_id, '조하늘', '2015-01-10', '강남초등학교', '5', '서울 강남구 역삼동',  '2025-11-15 10:00:00', 'paused',    JSON_OBJECT('name','조엄마','phone','010-3001-0011','relationship','mother','email',NULL), '조엄마', '010-3001-0011'),
+  -- 퇴원 학생 1명 — soft delete (withdrawn) 필터 검증용
+  (@s12, @academy_id, '서민재', '2013-08-04', '강남초등학교', '6', '서울 강남구 청담동',  '2025-09-20 10:00:00', 'withdrawn', JSON_OBJECT('name','서아빠','phone','010-3001-0012','relationship','father','email',NULL), '서아빠', '010-3001-0012'),
+  -- parent NULL 학생 1명 — 조부모 양육 등 학부모 미입력 케이스 안전성 검증용
+  (@s13, @academy_id, '백지원', '2016-09-30', '대치초등학교', '4', '서울 강남구 대치동',  '2026-02-01 10:00:00', 'active',    NULL,                                                                                                              NULL,     NULL);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 9. 학생-클래스 등록 (총 18건)
