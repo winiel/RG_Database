@@ -73,11 +73,32 @@ VALUES (@owner_id, @academy_id, 'winiel@winielab.com',
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 3. 설정 (1:1)
+--    JSON 키 셋: 백엔드 Pydantic 모델 (core/settings.py::PaymentSettings/NotificationSettings, extra='forbid') 형식 기준
+--    회신서: RG_Common/Document/RG_Database/2026-05-22-settings-seed-json-key-alignment-response.md
 -- ─────────────────────────────────────────────────────────────────────────────
 INSERT INTO settings (id, tenant_id, payment_settings, notification_settings)
 VALUES (UUID_TO_BIN(UUID(), 1), @academy_id,
-  JSON_OBJECT('billing_day', 1, 'due_day', 10, 'overdue_grace_days', 3),
-  JSON_OBJECT('sms_enabled', TRUE, 'kakao_enabled', TRUE, 'email_enabled', FALSE));
+  JSON_OBJECT(
+    'auto_billing_enabled',             TRUE,
+    'default_due_days_after_billing',   14,
+    'overdue_classification_days',      1,
+    'auto_reminder_days_after_due',     7
+  ),
+  JSON_OBJECT(
+    'parent', JSON_OBJECT(
+      'attendance_check_in', JSON_OBJECT('enabled', TRUE, 'channels', JSON_ARRAY('push')),
+      'absent_pending',      JSON_OBJECT('enabled', TRUE, 'channels', JSON_ARRAY('sms'),  'delay_minutes',  10),
+      'shuttle_arriving',    JSON_OBJECT('enabled', TRUE, 'channels', JSON_ARRAY('push'), 'minutes_before', 3),
+      'payment_billed',      JSON_OBJECT('enabled', TRUE, 'channels', JSON_ARRAY('push', 'sms')),
+      'payment_completed',   JSON_OBJECT('enabled', TRUE, 'channels', JSON_ARRAY('push')),
+      'payment_overdue',     JSON_OBJECT('enabled', TRUE, 'channels', JSON_ARRAY('sms', 'kakao'))
+    ),
+    'academy_owner', JSON_OBJECT(
+      'absent_pending_alert',  JSON_OBJECT('enabled', TRUE, 'channels', JSON_ARRAY('push')),
+      'payment_overdue_alert', JSON_OBJECT('enabled', TRUE, 'channels', JSON_ARRAY('push')),
+      'daily_summary_time',    '21:00'
+    )
+  ));
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 3.1 학기 (semesters) — 2026-1학기(현재) + 2026-2학기
