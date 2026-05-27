@@ -439,7 +439,7 @@ Table ability_tracks {
     name varchar(100) [not null]
     subject_id binary(16) [note: '종목별 트랙 분리']
     description varchar(500)
-    level_thresholds json [note: '등급 임계값 정의 — [{label, min_score, max_score}, ...]. NULL = 등급 미설정']
+    level_thresholds json [note: '등급 임계값 정의 — [{label, min_score, max_score}, ...]. NULL = 등급 미설정. CHECK: JSON_VALID + JSON_TYPE=ARRAY']
     default_score int [not null, default: 0, note: 'CHECK: 0~100. enroll cascade 시 student_abilities.score 초기값']
     created_at datetime [not null]
     updated_at datetime [not null]
@@ -475,7 +475,7 @@ Table student_abilities {
     student_id binary(16) [not null]
     ability_track_id binary(16) [not null]
     score decimal(5,2) [not null, note: 'CHECK: 0~100']
-    evaluated_at datetime [not null, default: 'CURRENT_TIMESTAMP']
+    evaluated_at datetime [note: 'NULL = enroll cascade 자동 초기화 (미평가), NOT NULL = 학원장 명시 평가 시각']
     created_at datetime [not null]
     updated_at datetime [not null]
 

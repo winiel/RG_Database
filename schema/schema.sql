@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-15633';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-16210';
 
 --
 -- Table structure for table `ability_tracks`
@@ -36,7 +36,9 @@ CREATE TABLE `ability_tracks` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_ability_tracks_tenant_id_name` (`tenant_id`,`name`),
   KEY `idx_ability_tracks_tenant_id_subject_id` (`tenant_id`,`subject_id`),
-  CONSTRAINT `chk_ability_tracks_default_score` CHECK (((`default_score` >= 0) and (`default_score` <= 100)))
+  CONSTRAINT `chk_ability_tracks_default_score` CHECK (((`default_score` >= 0) and (`default_score` <= 100))),
+  CONSTRAINT `chk_ability_tracks_level_thresholds_is_array` CHECK (((`level_thresholds` is null) or (json_type(`level_thresholds`) = _utf8mb4'ARRAY'))),
+  CONSTRAINT `chk_ability_tracks_level_thresholds_valid` CHECK (((`level_thresholds` is null) or json_valid(`level_thresholds`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -421,7 +423,7 @@ CREATE TABLE `student_abilities` (
   `student_id` binary(16) NOT NULL,
   `ability_track_id` binary(16) NOT NULL,
   `score` decimal(5,2) NOT NULL,
-  `evaluated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `evaluated_at` datetime DEFAULT NULL COMMENT '학원장 명시 평가 시각. NULL = enroll cascade 자동 초기화 (미평가).',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -655,5 +657,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260520123408'),
   ('20260527064335'),
   ('20260527092031'),
-  ('20260527092043');
+  ('20260527092043'),
+  ('20260527101754');
 UNLOCK TABLES;
