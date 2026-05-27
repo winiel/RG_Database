@@ -7,10 +7,10 @@
 --
 -- 데이터 범위
 --   * 학원 1개 (서유기학원), 학원장 계정 1개
---   * 과목 3개 (태권도/수학/영어), 강의실 2개, 강사 5명, 클래스 3개
---     - 강사 pay_type 3 분기 (hourly 3 / monthly 1 / annual 1) + employment 2 분기 (full_time 3 / part_time 2)
+--   * 과목 3개 (태권도/수학/영어), 강의실 2개, 강사 6명, 클래스 3개
+--     - 강사 pay_type 3 분기 (hourly 4 / monthly 1 / annual 1) + employment 3 분기 (full_time 3 / part_time 2 / contract 1)
 --     - 클래스 teacher 매핑은 기존 그대로 (사오정 ↔ 태권도반/토요태권도반, 저팔계 ↔ 수학반/영어반/심화수학반)
---     - 우마왕/나타/홍해아 는 강사 리스트 노출 전용 (클래스 미배정) — 시연 동선 확장 시 별도 요청
+--     - 우마왕/나타/홍해아/황포괴 는 강사 리스트 노출 전용 (클래스 미배정) — 시연 동선 확장 시 별도 요청
 --   * 학생 10명, 학생-클래스 등록 18건
 --   * 결제 2026-01 ~ 2026-05 월간 (등록당 5건, 약 90건)
 --     - 90% paid / 5% overdue / 5% cancelled
@@ -131,19 +131,21 @@ INSERT INTO rooms (id, tenant_id, name, description) VALUES
   (@room_class,  @academy_id, '2관', '학습실 (책상 20석)');
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 6. 강사 (5명) — pay_type 3 분기 (hourly/monthly/annual) + employment 2 분기 (full_time/part_time)
---    RG_Backend 요청서 (RG_Common 8561095) §2.1+§2.2 채택안
---    - 사오정 (태권도) / full_time / hourly 35,000
---    - 저팔계 (수학)   / full_time / monthly 2,800,000   ← hourly→monthly 변경
---    - 우마왕 (영어)   / full_time / annual 42,000,000   ← 신규 정직원 연봉제
---    - 나타   (영어)   / part_time / hourly 30,000        ← 신규 시간강사
---    - 홍해아 (태권도) / part_time / hourly 28,000        ← 신규 시간강사
+-- 6. 강사 (6명) — pay_type 3 분기 (hourly/monthly/annual) + employment 3 분기 (full_time/part_time/contract)
+--    RG_Backend 요청서 (RG_Common 8561095) §2.1+§2.2 채택안 + contract 분기 보강 (RG_Director 후속)
+--    - 사오정 (태권도) / full_time / hourly  / 35,000
+--    - 저팔계 (수학)   / full_time / monthly / 2,800,000  ← hourly→monthly 변경
+--    - 우마왕 (영어)   / full_time / annual  / 42,000,000 ← 정직원 연봉제
+--    - 나타   (영어)   / part_time / hourly  / 30,000      ← 시간강사
+--    - 홍해아 (태권도) / part_time / hourly  / 28,000      ← 시간강사
+--    - 황포괴 (수학)   / contract  / hourly  / 33,000      ← 계약직 (employment 3 분기 보강)
 -- ─────────────────────────────────────────────────────────────────────────────
 SET @teacher_sa  = UUID_TO_BIN(UUID(), 1);
 SET @teacher_jeo = UUID_TO_BIN(UUID(), 1);
 SET @teacher_uma = UUID_TO_BIN(UUID(), 1);
 SET @teacher_na  = UUID_TO_BIN(UUID(), 1);
 SET @teacher_hh  = UUID_TO_BIN(UUID(), 1);
+SET @teacher_hp  = UUID_TO_BIN(UUID(), 1);
 INSERT INTO teachers (
     id, tenant_id, name, subject_id, phone, email,
     employment_type, pay_type, base_pay,
@@ -153,7 +155,8 @@ INSERT INTO teachers (
   (@teacher_jeo, @academy_id, '저팔계', @subj_math,      '010-2222-2222', 'jeo@seoyugi.kr', 'full_time', 'monthly', 2800000,  '2025-06-01 09:00:00', 'active'),
   (@teacher_uma, @academy_id, '우마왕', @subj_english,   '010-2222-3333', 'uma@seoyugi.kr', 'full_time', 'annual',  42000000, '2024-09-01 09:00:00', 'active'),
   (@teacher_na,  @academy_id, '나타',   @subj_english,   '010-2222-4444', 'na@seoyugi.kr',  'part_time','hourly',  30000,    '2026-01-15 09:00:00', 'active'),
-  (@teacher_hh,  @academy_id, '홍해아', @subj_taekwondo, '010-2222-5555', 'hh@seoyugi.kr',  'part_time','hourly',  28000,    '2026-02-01 09:00:00', 'active');
+  (@teacher_hh,  @academy_id, '홍해아', @subj_taekwondo, '010-2222-5555', 'hh@seoyugi.kr',  'part_time','hourly',  28000,    '2026-02-01 09:00:00', 'active'),
+  (@teacher_hp,  @academy_id, '황포괴', @subj_math,      '010-2222-6666', 'hp@seoyugi.kr',  'contract', 'hourly',  33000,    '2026-04-01 09:00:00', 'active');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 7. 클래스 (5개 — 운영 3 / 휴강 1 / 종료 1)
