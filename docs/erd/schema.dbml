@@ -439,6 +439,8 @@ Table ability_tracks {
     name varchar(100) [not null]
     subject_id binary(16) [note: '종목별 트랙 분리']
     description varchar(500)
+    level_thresholds json [note: '등급 임계값 정의 — [{label, min_score, max_score}, ...]. NULL = 등급 미설정']
+    default_score int [not null, default: 0, note: 'CHECK: 0~100. enroll cascade 시 student_abilities.score 초기값']
     created_at datetime [not null]
     updated_at datetime [not null]
 
@@ -448,6 +450,23 @@ Table ability_tracks {
     }
 
     Note: '능력치 트랙 마스터'
+}
+
+Table class_ability_tracks {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    class_id binary(16) [not null]
+    ability_track_id binary(16) [not null]
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, class_id, ability_track_id) [unique, name: 'uq_class_ability_tracks_tenant_class_track']
+        (tenant_id, class_id) [name: 'idx_class_ability_tracks_tenant_class']
+        (tenant_id, ability_track_id) [name: 'idx_class_ability_tracks_tenant_track']
+    }
+
+    Note: '클래스 ↔ 능력치 트랙 N:M 매핑. 학생 enroll 시 cascade 로 student_abilities row 자동 생성'
 }
 
 Table student_abilities {

@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-13552';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-15633';
 
 --
 -- Table structure for table `ability_tracks`
@@ -29,11 +29,14 @@ CREATE TABLE `ability_tracks` (
   `name` varchar(100) NOT NULL,
   `subject_id` binary(16) DEFAULT NULL,
   `description` varchar(500) DEFAULT NULL,
+  `level_thresholds` json DEFAULT NULL COMMENT '등급 임계값 정의 — [{label, min_score, max_score}, ...]. NULL = 등급 미설정',
+  `default_score` int NOT NULL DEFAULT '0' COMMENT '학생 enroll cascade 시 student_abilities.score 초기값 (0~100)',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_ability_tracks_tenant_id_name` (`tenant_id`,`name`),
-  KEY `idx_ability_tracks_tenant_id_subject_id` (`tenant_id`,`subject_id`)
+  KEY `idx_ability_tracks_tenant_id_subject_id` (`tenant_id`,`subject_id`),
+  CONSTRAINT `chk_ability_tracks_default_score` CHECK (((`default_score` >= 0) and (`default_score` <= 100)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -130,6 +133,26 @@ CREATE TABLE `attendances` (
   CONSTRAINT `chk_attendances_absence_category` CHECK (((`absence_category` is null) or (`absence_category` in (_utf8mb4'sick',_utf8mb4'family',_utf8mb4'travel',_utf8mb4'school',_utf8mb4'other')))),
   CONSTRAINT `chk_attendances_status` CHECK ((`attendance_status` in (_utf8mb4'present',_utf8mb4'late',_utf8mb4'absent',_utf8mb4'excused')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `class_ability_tracks`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `class_ability_tracks` (
+  `id` binary(16) NOT NULL,
+  `tenant_id` binary(16) NOT NULL,
+  `class_id` binary(16) NOT NULL,
+  `ability_track_id` binary(16) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_class_ability_tracks_tenant_class_track` (`tenant_id`,`class_id`,`ability_track_id`),
+  KEY `idx_class_ability_tracks_tenant_class` (`tenant_id`,`class_id`),
+  KEY `idx_class_ability_tracks_tenant_track` (`tenant_id`,`ability_track_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='클래스 ↔ 능력치 트랙 N:M 매핑 — 학생 enroll cascade 시 자동 평가 row 생성용';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -630,5 +653,7 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260516144831'),
   ('20260516151748'),
   ('20260520123408'),
-  ('20260527064335');
+  ('20260527064335'),
+  ('20260527092031'),
+  ('20260527092043');
 UNLOCK TABLES;

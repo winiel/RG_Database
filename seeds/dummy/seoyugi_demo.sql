@@ -11,6 +11,9 @@
 --     - 강사 pay_type 3 분기 (hourly 4 / monthly 1 / annual 1) + employment 3 분기 (full_time 3 / part_time 2 / contract 1)
 --     - 클래스 teacher 매핑은 기존 그대로 (사오정 ↔ 태권도반/토요태권도반, 저팔계 ↔ 수학반/영어반/심화수학반)
 --     - 우마왕/나타/홍해아/황포괴 는 강사 리스트 노출 전용 (클래스 미배정) — 시연 동선 확장 시 별도 요청
+--   * 능력치 트랙 3건 (서유기 자체 — 태권도 5단계 / 수학 4단계 / 영어 3단계)
+--     - level_thresholds JSON 등급 정의 + default_score 분기 (0 / 50 / 0)
+--     - 클래스 ↔ 트랙 매핑 3건 (태권도반/수학반/영어반 ↔ 동명 트랙) — 학생 enroll cascade 시연용
 --   * 학생 10명, 학생-클래스 등록 18건
 --   * 결제 2026-01 ~ 2026-05 월간 (등록당 5건, 약 90건)
 --     - 90% paid / 5% overdue / 5% cancelled
@@ -33,6 +36,7 @@ DELETE FROM payments;
 DELETE FROM attendances;
 DELETE FROM vision_verifications;
 DELETE FROM student_abilities;
+DELETE FROM class_ability_tracks;
 DELETE FROM ability_tracks;
 DELETE FROM uploads;
 DELETE FROM message_templates;
@@ -131,6 +135,39 @@ INSERT INTO rooms (id, tenant_id, name, description) VALUES
   (@room_class,  @academy_id, '2관', '학습실 (책상 20석)');
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- 5.5 능력치 트랙 (3건) — 서유기 tenant 자체 트랙. 마스터 트랙(별 tenant) 과 무관.
+--      RG_Backend 요청서 (RG_Common fc5d8c8 / 3bbbdd7) — level_thresholds JSON + default_score
+--      - 태권도 트랙: 5단계 띠 (default 0 — 흰띠 시작)
+--      - 수학 트랙:   4단계 (default 50 — 중급 시작)
+--      - 영어 트랙:   3단계 (default 0 — 초급 시작)
+-- ─────────────────────────────────────────────────────────────────────────────
+SET @track_tk = UUID_TO_BIN(UUID(), 1);
+SET @track_ma = UUID_TO_BIN(UUID(), 1);
+SET @track_en = UUID_TO_BIN(UUID(), 1);
+INSERT INTO ability_tracks (id, tenant_id, name, subject_id, description, level_thresholds, default_score) VALUES
+  (@track_tk, @academy_id, '서유기 태권도 트랙', @subj_taekwondo, '기본 동작·품새·겨루기 단계별 평가',
+      JSON_ARRAY(
+          JSON_OBJECT('label','흰띠',  'min_score',0,  'max_score',20),
+          JSON_OBJECT('label','노란띠','min_score',20, 'max_score',40),
+          JSON_OBJECT('label','파란띠','min_score',40, 'max_score',60),
+          JSON_OBJECT('label','빨간띠','min_score',60, 'max_score',80),
+          JSON_OBJECT('label','검은띠','min_score',80, 'max_score',100)
+      ), 0),
+  (@track_ma, @academy_id, '서유기 수학 트랙',   @subj_math,      '개념·연산·문장제 단계별 평가',
+      JSON_ARRAY(
+          JSON_OBJECT('label','입문','min_score',0,  'max_score',25),
+          JSON_OBJECT('label','기초','min_score',25, 'max_score',50),
+          JSON_OBJECT('label','중급','min_score',50, 'max_score',75),
+          JSON_OBJECT('label','심화','min_score',75, 'max_score',100)
+      ), 50),
+  (@track_en, @academy_id, '서유기 영어 트랙',   @subj_english,   '어휘·문법·회화 단계별 평가',
+      JSON_ARRAY(
+          JSON_OBJECT('label','초급','min_score',0,  'max_score',33),
+          JSON_OBJECT('label','중급','min_score',33, 'max_score',66),
+          JSON_OBJECT('label','고급','min_score',66, 'max_score',100)
+      ), 0);
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- 6. 강사 (6명) — pay_type 3 분기 (hourly/monthly/annual) + employment 3 분기 (full_time/part_time/contract)
 --    RG_Backend 요청서 (RG_Common 8561095) §2.1+§2.2 채택안 + contract 분기 보강 (RG_Director 후속)
 --    - 사오정 (태권도) / full_time / hourly  / 35,000
@@ -177,6 +214,16 @@ INSERT INTO classes (id, tenant_id, name, subject_id, teacher_id, room_id, days_
   (@class_taekwondo_ended, @academy_id, '토요 태권도반 (2025)', @subj_taekwondo, @teacher_sa,  @room_dojang, JSON_ARRAY(6), '09:00:00', '10:30:00', 10, 'ended',  '2025-03-01 09:00:00'),
   -- 휴강 클래스 1건 — paused 필터 / 휴강 카운트 검증용
   (@class_math_paused,     @academy_id, '토요 심화수학반',   @subj_math,      @teacher_jeo, @room_class,  JSON_ARRAY(6), '14:00:00', '15:30:00', 10, 'paused', '2026-02-01 14:00:00');
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 7.5 클래스 ↔ 능력치 트랙 매핑 (3건) — enroll cascade 시연용
+--      태권도반 ↔ 서유기 태권도 트랙 / 수학반 ↔ 서유기 수학 트랙 / 영어반 ↔ 서유기 영어 트랙
+--      학생이 이 클래스에 enroll 되면 백엔드가 자동으로 해당 트랙의 student_abilities row 생성
+-- ─────────────────────────────────────────────────────────────────────────────
+INSERT INTO class_ability_tracks (id, tenant_id, class_id, ability_track_id) VALUES
+  (UUID_TO_BIN(UUID(), 1), @academy_id, @class_taekwondo, @track_tk),
+  (UUID_TO_BIN(UUID(), 1), @academy_id, @class_math,      @track_ma),
+  (UUID_TO_BIN(UUID(), 1), @academy_id, @class_english,   @track_en);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 8. 학생 (13명 — 운영 10 / 휴원 1 / 퇴원 1 / parent NULL 1)
@@ -379,6 +426,8 @@ UNION ALL SELECT 'user_accounts',     COUNT(*) FROM user_accounts     WHERE tena
 UNION ALL SELECT 'settings',          COUNT(*) FROM settings          WHERE tenant_id = @academy_id
 UNION ALL SELECT 'subjects',          COUNT(*) FROM subjects          WHERE tenant_id = @academy_id
 UNION ALL SELECT 'rooms',             COUNT(*) FROM rooms             WHERE tenant_id = @academy_id
+UNION ALL SELECT 'ability_tracks',    COUNT(*) FROM ability_tracks    WHERE tenant_id = @academy_id
+UNION ALL SELECT 'class_ability_tracks', COUNT(*) FROM class_ability_tracks WHERE tenant_id = @academy_id
 UNION ALL SELECT 'teachers',          COUNT(*) FROM teachers          WHERE tenant_id = @academy_id
 UNION ALL SELECT 'classes',           COUNT(*) FROM classes           WHERE tenant_id = @academy_id
 UNION ALL SELECT 'students',          COUNT(*) FROM students          WHERE tenant_id = @academy_id
