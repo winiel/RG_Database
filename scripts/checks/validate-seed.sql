@@ -57,6 +57,7 @@ INSERT INTO rg_validation (category, check_name, violations) VALUES
     ('orphan', 'settings.tenant_id',               (SELECT COUNT(*) FROM settings t             LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL)),
     ('orphan', 'ability_tracks.tenant_id',         (SELECT COUNT(*) FROM ability_tracks t       LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL)),
     ('orphan', 'student_abilities.tenant_id',      (SELECT COUNT(*) FROM student_abilities t    LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL)),
+    ('orphan', 'class_ability_tracks.tenant_id',   (SELECT COUNT(*) FROM class_ability_tracks t LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL)),
     ('orphan', 'uploads.tenant_id',                (SELECT COUNT(*) FROM uploads t              LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL)),
     ('orphan', 'semesters.tenant_id',              (SELECT COUNT(*) FROM semesters t            LEFT JOIN academies a ON a.id = t.tenant_id WHERE a.id IS NULL));
 
@@ -79,6 +80,8 @@ INSERT INTO rg_validation (category, check_name, violations) VALUES
     ('orphan', 'ability_tracks.subject_id (n-null)',   (SELECT COUNT(*) FROM ability_tracks t LEFT JOIN subjects s ON s.id = t.subject_id WHERE t.subject_id IS NOT NULL AND s.id IS NULL)),
     ('orphan', 'student_abilities.student_id',         (SELECT COUNT(*) FROM student_abilities t LEFT JOIN students s ON s.id = t.student_id WHERE s.id IS NULL)),
     ('orphan', 'student_abilities.track_id',           (SELECT COUNT(*) FROM student_abilities t LEFT JOIN ability_tracks at ON at.id = t.ability_track_id WHERE at.id IS NULL)),
+    ('orphan', 'class_ability_tracks.class_id',        (SELECT COUNT(*) FROM class_ability_tracks t LEFT JOIN classes c ON c.id = t.class_id WHERE c.id IS NULL)),
+    ('orphan', 'class_ability_tracks.track_id',        (SELECT COUNT(*) FROM class_ability_tracks t LEFT JOIN ability_tracks at ON at.id = t.ability_track_id WHERE at.id IS NULL)),
     ('orphan', 'uploads.created_by (non-null)',        (SELECT COUNT(*) FROM uploads t LEFT JOIN user_accounts u ON u.id = t.created_by_user_account_id WHERE t.created_by_user_account_id IS NOT NULL AND u.id IS NULL));
 
 -- ----------------------------------------------------------------------------
@@ -102,6 +105,8 @@ INSERT INTO rg_validation (category, check_name, violations) VALUES
     ('tenancy', 'student_abilities vs students',   (SELECT COUNT(*) FROM student_abilities sa JOIN students s ON s.id = sa.student_id WHERE sa.tenant_id != s.tenant_id)),
     ('tenancy', 'student_abilities vs ab_tracks',  (SELECT COUNT(*) FROM student_abilities sa JOIN ability_tracks at ON at.id = sa.ability_track_id WHERE sa.tenant_id != at.tenant_id)),
     ('tenancy', 'ability_tracks vs subjects',      (SELECT COUNT(*) FROM ability_tracks at JOIN subjects s ON s.id = at.subject_id WHERE at.subject_id IS NOT NULL AND at.tenant_id != s.tenant_id)),
+    ('tenancy', 'class_ability_tracks vs classes', (SELECT COUNT(*) FROM class_ability_tracks cat JOIN classes c ON c.id = cat.class_id WHERE cat.tenant_id != c.tenant_id)),
+    ('tenancy', 'class_ability_tracks vs tracks',  (SELECT COUNT(*) FROM class_ability_tracks cat JOIN ability_tracks at ON at.id = cat.ability_track_id WHERE cat.tenant_id != at.tenant_id)),
     ('tenancy', 'uploads vs user_accounts',        (SELECT COUNT(*) FROM uploads u JOIN user_accounts ua ON ua.id = u.created_by_user_account_id WHERE u.created_by_user_account_id IS NOT NULL AND u.tenant_id != ua.tenant_id));
 
 -- ----------------------------------------------------------------------------
