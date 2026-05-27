@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-2408';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-13552';
 
 --
 -- Table structure for table `ability_tracks`
@@ -512,7 +512,8 @@ CREATE TABLE `teachers` (
   `phone` varchar(20) DEFAULT NULL,
   `email` varchar(255) DEFAULT NULL,
   `employment_type` varchar(20) NOT NULL DEFAULT 'full_time',
-  `hourly_rate` decimal(10,2) DEFAULT NULL,
+  `pay_type` enum('annual','monthly','hourly') NOT NULL DEFAULT 'hourly' COMMENT '급여 형태 (연봉/월급/시간당)',
+  `base_pay` int unsigned DEFAULT NULL COMMENT '급여 금액 (원 단위, pay_type 에 종속)',
   `joined_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `status` varchar(20) NOT NULL DEFAULT 'active',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -628,5 +629,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260514074640'),
   ('20260516144831'),
   ('20260516151748'),
-  ('20260520123408');
+  ('20260520123408'),
+  ('20260527064335');
 UNLOCK TABLES;
