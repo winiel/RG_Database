@@ -474,7 +474,7 @@ Table student_abilities {
     tenant_id binary(16) [not null]
     student_id binary(16) [not null]
     ability_track_id binary(16) [not null]
-    score decimal(5,2) [not null, note: 'CHECK: 0~100']
+    score int [not null, default: 0, note: 'CHECK: 0~100. default_score 타입 정합 (F=X)']
     evaluated_at datetime [note: 'NULL = enroll cascade 자동 초기화 (미평가), NOT NULL = 학원장 명시 평가 시각']
     created_at datetime [not null]
     updated_at datetime [not null]

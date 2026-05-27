@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-16210';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-16214';
 
 --
 -- Table structure for table `ability_tracks`
@@ -422,7 +422,7 @@ CREATE TABLE `student_abilities` (
   `tenant_id` binary(16) NOT NULL,
   `student_id` binary(16) NOT NULL,
   `ability_track_id` binary(16) NOT NULL,
-  `score` decimal(5,2) NOT NULL,
+  `score` int NOT NULL DEFAULT '0',
   `evaluated_at` datetime DEFAULT NULL COMMENT '학원장 명시 평가 시각. NULL = enroll cascade 자동 초기화 (미평가).',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -658,5 +658,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260527064335'),
   ('20260527092031'),
   ('20260527092043'),
-  ('20260527101754');
+  ('20260527101754'),
+  ('20260527102152');
 UNLOCK TABLES;
