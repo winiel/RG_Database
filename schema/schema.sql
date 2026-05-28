@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-28234';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-28240';
 
 --
 -- Table structure for table `ability_tracks`
@@ -610,6 +610,29 @@ CREATE TABLE `students` (
   CONSTRAINT `chk_students_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'paused',_utf8mb4'withdrawn')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_students_auto_person_id` BEFORE INSERT ON `students` FOR EACH ROW BEGIN
+    DECLARE new_pid BINARY(16);
+    IF NEW.person_id IS NULL THEN
+        SET new_pid = UUID_TO_BIN(UUID(), 1);
+        INSERT INTO persons (id, name, birth_date)
+            VALUES (new_pid, NEW.name, NEW.birth_date);
+        SET NEW.person_id = new_pid;
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
 -- Table structure for table `subjects`
@@ -773,5 +796,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260528113527'),
   ('20260528113528'),
   ('20260528113529'),
-  ('20260528114510');
+  ('20260528114510'),
+  ('20260528123600');
 UNLOCK TABLES;

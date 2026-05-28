@@ -152,8 +152,14 @@ Table students {
         person_id [name: 'idx_students_person_id']
     }
 
-    Note: '학생 (Phase 5 — person_id 추가, 1:1 backfill)'
+    Note: '학생 (Phase 5 — person_id 추가, 1:1 backfill / BEFORE INSERT trigger 로 person_id 미명시 시 자동 person 생성)'
 }
+
+// TRIGGER trg_students_auto_person_id (BEFORE INSERT ON students)
+// person_id IS NULL 시 신규 persons row 생성 (name + birth_date 복사) 후 NEW.person_id 연결.
+// person_id 명시 시 (학원장 수동 통합 / merge-person endpoint) 그대로 통과.
+// B8 X 정합 — Backend INSERT 통합 테스트 17건 자동 복원 (코드 변경 0).
+// 마이그: 20260528123600_add_auto_person_id_trigger_to_students
 
 Table student_notes {
     id binary(16) [pk]
