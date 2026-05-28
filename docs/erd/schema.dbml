@@ -314,6 +314,7 @@ Table attendances {
     check_in_at datetime [note: 'present/late일 때만 채움']
     vision_verification_id binary(16) [note: 'NULL 허용 (Vision 미사용 출결)']
     absence_reason varchar(255)
+    memo varchar(500) [note: '수업 일지 (강사·원장이 매 수업 종료 후 학생 단위 기록) — 2026-05-28']
     absence_category varchar(20) [note: 'CHECK: NULL or sick|family|travel|school|other (school 추가: 2026-05-10 RG_Director 요청)']
     is_absence_notified_in_advance boolean [not null, default: 'FALSE']
     created_at datetime [not null]

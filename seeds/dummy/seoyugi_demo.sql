@@ -419,6 +419,40 @@ WHERE sc.tenant_id = @academy_id
   AND (sc.unenrolled_at IS NULL OR sc.unenrolled_at > dt.d);
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- 12.5 수업 일지 (attendances.memo) 시연용 일부 row — 영업 시연 임팩트
+--      결정적 선택 (CRC32 mod 100 < 2 → 약 2%, 약 15건)
+--      클래스/상태별 텍스트 분기 (태권도/수학/영어 + 결석/지각)
+-- ─────────────────────────────────────────────────────────────────────────────
+UPDATE attendances a
+JOIN classes c ON c.id = a.class_id
+SET memo = CASE
+    WHEN a.attendance_status IN ('absent', 'excused') THEN
+        ELT(MOD(CRC32(CONCAT('memo_absent', BIN_TO_UUID(a.student_id, 1), a.`date`)), 3) + 1,
+            '결석 사유 부모님 통화 — 가족 행사 (다음 주 보강 권장)',
+            '사전 양해 — 학교 행사 참여로 결석',
+            '몸살감기 — 충분한 휴식 후 복귀 권장')
+    WHEN a.attendance_status = 'late' THEN
+        '지각 사유 — 학교 수업 길어짐. 다음부터 조기 출발 안내'
+    WHEN c.name = '태권도반' THEN
+        ELT(MOD(CRC32(CONCAT('memo_taekwondo', BIN_TO_UUID(a.student_id, 1), a.`date`)), 3) + 1,
+            '집중력 좋음. 발차기 자세 안정적',
+            '품새 동작 정확히 따라함. 다음 주 시범 가능',
+            '체력 향상 뚜렷. 다음 단계 준비 완료')
+    WHEN c.name = '수학반' THEN
+        ELT(MOD(CRC32(CONCAT('memo_math', BIN_TO_UUID(a.student_id, 1), a.`date`)), 3) + 1,
+            '응용 문제 잘 풀어요. 다음 단원 미리 학습 가능',
+            '도형 단원 어려워함. 보충 자료 안내 예정',
+            '연산 속도 빨라짐. 정답률 90% 이상')
+    WHEN c.name = '영어반' THEN
+        ELT(MOD(CRC32(CONCAT('memo_english', BIN_TO_UUID(a.student_id, 1), a.`date`)), 3) + 1,
+            '단어 시험 만점. 어휘력 향상 뚜렷함',
+            '회화 자신감 ↑. 발음 교정 진행 중',
+            '리스닝 답안 정확. 다음 단계 준비 완료')
+END
+WHERE a.tenant_id = @academy_id
+  AND MOD(CRC32(CONCAT('select_memo', BIN_TO_UUID(a.student_id, 1), BIN_TO_UUID(a.class_id, 1), a.`date`)), 100) < 2;
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- 13. 검증
 -- ─────────────────────────────────────────────────────────────────────────────
 SELECT 'academies'        AS t, COUNT(*) AS n FROM academies        WHERE id        = @academy_id

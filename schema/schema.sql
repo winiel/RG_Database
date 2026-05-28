@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-16214';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-21916';
 
 --
 -- Table structure for table `ability_tracks`
@@ -124,6 +124,7 @@ CREATE TABLE `attendances` (
   `check_in_at` datetime DEFAULT NULL,
   `vision_verification_id` binary(16) DEFAULT NULL,
   `absence_reason` varchar(255) DEFAULT NULL,
+  `memo` varchar(500) DEFAULT NULL COMMENT '수업 일지 (강사·원장이 매 수업 종료 후 학생 단위 기록)',
   `absence_category` varchar(20) DEFAULT NULL,
   `is_absence_notified_in_advance` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -659,5 +660,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260527092031'),
   ('20260527092043'),
   ('20260527101754'),
-  ('20260527102152');
+  ('20260527102152'),
+  ('20260528071913');
 UNLOCK TABLES;
