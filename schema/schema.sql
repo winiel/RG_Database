@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-26743';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-28234';
 
 --
 -- Table structure for table `ability_tracks`
@@ -588,6 +588,7 @@ CREATE TABLE `student_notes` (
 CREATE TABLE `students` (
   `id` binary(16) NOT NULL,
   `tenant_id` binary(16) NOT NULL,
+  `person_id` binary(16) NOT NULL,
   `name` varchar(100) NOT NULL,
   `birth_date` date DEFAULT NULL,
   `school_name` varchar(100) DEFAULT NULL,
@@ -605,6 +606,7 @@ CREATE TABLE `students` (
   KEY `idx_students_tenant_id_status` (`tenant_id`,`status`),
   KEY `idx_students_tenant_id_parent_phone` (`tenant_id`,`parent_phone`),
   KEY `idx_students_tenant_id_name` (`tenant_id`,`name`),
+  KEY `idx_students_person_id` (`person_id`),
   CONSTRAINT `chk_students_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'paused',_utf8mb4'withdrawn')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -770,5 +772,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260528113526'),
   ('20260528113527'),
   ('20260528113528'),
-  ('20260528113529');
+  ('20260528113529'),
+  ('20260528114510');
 UNLOCK TABLES;

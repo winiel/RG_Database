@@ -130,6 +130,7 @@ Table refresh_tokens {
 Table students {
     id binary(16) [pk]
     tenant_id binary(16) [not null]
+    person_id binary(16) [not null, note: 'Phase 5 — 글로벌 persons FK (1:1 backfill 2026-05-28)']
     name varchar(100) [not null]
     birth_date date
     school_name varchar(100)
@@ -148,9 +149,10 @@ Table students {
         (tenant_id, status) [name: 'idx_students_tenant_id_status']
         (tenant_id, parent_phone) [name: 'idx_students_tenant_id_parent_phone']
         (tenant_id, name) [name: 'idx_students_tenant_id_name']
+        person_id [name: 'idx_students_person_id']
     }
 
-    Note: '학생'
+    Note: '학생 (Phase 5 — person_id 추가, 1:1 backfill)'
 }
 
 Table student_notes {
@@ -718,3 +720,4 @@ Ref: guardian_consents.guardian_id > guardians.id [delete: restrict]
 Ref: guardian_consents.person_id > persons.id [delete: restrict]
 Ref: person_link_requests.person_id > persons.id [delete: restrict]
 Ref: person_link_requests.student_id > students.id [delete: restrict]
+Ref: students.person_id > persons.id [delete: restrict]  // Phase 5 마이그 6 — 1:1 backfill 후 NOT NULL
