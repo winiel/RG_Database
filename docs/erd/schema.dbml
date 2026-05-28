@@ -325,6 +325,9 @@ Table attendances {
     memo varchar(500) [note: '수업 일지 (강사·원장이 매 수업 종료 후 학생 단위 기록) — 2026-05-28']
     absence_category varchar(20) [note: 'CHECK: NULL or sick|family|travel|school|other (school 추가: 2026-05-10 RG_Director 요청)']
     is_absence_notified_in_advance boolean [not null, default: 'FALSE']
+    created_via varchar(20) [not null, default: 'manual', note: 'CHECK: manual|auto|vision|ai — 자동 출결 옵션 β (N10, 2026-05-29). cron INSERT 시 auto + confirmed_at=cron_run_at (Backend 옵션 Y)']
+    confirmed_at datetime [note: 'D6 chip tooltip 시각. cron 자동 처리 시 cron_run_at / 학원장 입력·정정 시 NOW() / 학원장 미확인 시 NULL']
+    confirmed_by binary(16) [note: '학원장 user_id (멀티 RBAC 미래 호환). NULL = 학원장 미확인 (dashboard auto_confirm_pending_count 분기 기준)']
     created_at datetime [not null]
     updated_at datetime [not null]
 

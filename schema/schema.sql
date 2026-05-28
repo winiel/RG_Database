@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-28240';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-31718';
 
 --
 -- Table structure for table `ability_tracks`
@@ -129,11 +129,15 @@ CREATE TABLE `attendances` (
   `is_absence_notified_in_advance` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_via` varchar(20) NOT NULL DEFAULT 'manual',
+  `confirmed_at` datetime DEFAULT NULL,
+  `confirmed_by` binary(16) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_attendances_tenant_id_student_id_class_id_date` (`tenant_id`,`student_id`,`class_id`,`date`),
   KEY `idx_attendances_tenant_id_class_id_date` (`tenant_id`,`class_id`,`date`),
   KEY `idx_attendances_tenant_id_student_id_date` (`tenant_id`,`student_id`,`date`),
   CONSTRAINT `chk_attendances_absence_category` CHECK (((`absence_category` is null) or (`absence_category` in (_utf8mb4'sick',_utf8mb4'family',_utf8mb4'travel',_utf8mb4'school',_utf8mb4'other')))),
+  CONSTRAINT `chk_attendances_created_via` CHECK ((`created_via` in (_utf8mb4'manual',_utf8mb4'auto',_utf8mb4'vision',_utf8mb4'ai'))),
   CONSTRAINT `chk_attendances_status` CHECK ((`attendance_status` in (_utf8mb4'present',_utf8mb4'late',_utf8mb4'absent',_utf8mb4'excused')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -797,5 +801,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260528113528'),
   ('20260528113529'),
   ('20260528114510'),
-  ('20260528123600');
+  ('20260528123600'),
+  ('20260528152603');
 UNLOCK TABLES;
