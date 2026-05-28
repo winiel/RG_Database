@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-21916';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-26743';
 
 --
 -- Table structure for table `ability_tracks`
@@ -189,6 +189,67 @@ CREATE TABLE `classes` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `guardian_consents`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `guardian_consents` (
+  `id` binary(16) NOT NULL,
+  `guardian_id` binary(16) NOT NULL,
+  `person_id` binary(16) NOT NULL,
+  `action` varchar(30) NOT NULL,
+  `otp_verified_at` datetime NOT NULL COMMENT 'SMS OTP 검증 완료 시각 (B4'' SMS 통일)',
+  `consented_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `revoked_at` datetime DEFAULT NULL COMMENT 'NULL = 활성 / NOT NULL = 철회됨',
+  `ip_address` varchar(45) DEFAULT NULL COMMENT 'IPv4/IPv6 — audit 보강',
+  `user_agent` varchar(255) DEFAULT NULL COMMENT 'client UA — audit 보강',
+  PRIMARY KEY (`id`),
+  KEY `idx_consents_guardian` (`guardian_id`,`consented_at`),
+  KEY `idx_consents_person` (`person_id`,`consented_at`),
+  CONSTRAINT `chk_consent_action` CHECK ((`action` in (_utf8mb4'claim_person',_utf8mb4'link_to_academy',_utf8mb4'revoke',_utf8mb4'reauth')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='학부모 동의 audit (개인정보보호법 시행령 §29 정합)';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `guardian_persons`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `guardian_persons` (
+  `id` binary(16) NOT NULL,
+  `guardian_id` binary(16) NOT NULL,
+  `person_id` binary(16) NOT NULL,
+  `relationship` varchar(20) NOT NULL COMMENT 'mother | father | guardian | grandparent | other',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_guardian_persons` (`guardian_id`,`person_id`),
+  KEY `idx_guardian_persons_person` (`person_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='보호자 ↔ 아이 매핑 (claimed 상태) — 형제자매 자동 그룹 매칭 SOURCE';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `guardians`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `guardians` (
+  `id` binary(16) NOT NULL,
+  `phone` varchar(20) NOT NULL COMMENT 'B1'' 1차 lookup 키 — exact match',
+  `name` varchar(100) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `password_hash` varchar(255) DEFAULT NULL COMMENT 'B4'' SMS OTP 통일 — 비밀번호 인증 옵션',
+  `last_login_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_guardians_phone` (`phone`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='글로벌 보호자 계정 (학부모 앱 로그인) — user_accounts 와 별도 인증 stack';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `holidays`
 --
 
@@ -316,6 +377,49 @@ CREATE TABLE `payments` (
   CONSTRAINT `chk_payments_refunded_amount` CHECK (((`refunded_amount` >= 0) and (`refunded_amount` <= `amount`))),
   CONSTRAINT `chk_payments_status` CHECK ((`payment_status` in (_utf8mb4'pending',_utf8mb4'paid',_utf8mb4'overdue',_utf8mb4'cancelled',_utf8mb4'refunded')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `person_link_requests`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `person_link_requests` (
+  `id` binary(16) NOT NULL,
+  `tenant_id` binary(16) NOT NULL,
+  `student_id` binary(16) NOT NULL,
+  `person_id` binary(16) NOT NULL,
+  `initiator` varchar(20) NOT NULL COMMENT 'academy (Type A'') | guardian (Type B)',
+  `status` varchar(20) NOT NULL DEFAULT 'pending',
+  `requested_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `resolved_at` datetime DEFAULT NULL,
+  `expires_at` datetime NOT NULL COMMENT 'B2 Z — 30일 권장 (운영 정책)',
+  PRIMARY KEY (`id`),
+  KEY `idx_plr_tenant_status` (`tenant_id`,`status`),
+  KEY `idx_plr_person_status` (`person_id`,`status`),
+  CONSTRAINT `chk_plr_initiator` CHECK ((`initiator` in (_utf8mb4'academy',_utf8mb4'guardian'))),
+  CONSTRAINT `chk_plr_status` CHECK ((`status` in (_utf8mb4'pending',_utf8mb4'approved',_utf8mb4'rejected',_utf8mb4'expired')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='학원 ↔ 학생 ↔ person 매칭 요청 워크플로우 (Type A''/B)';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `persons`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `persons` (
+  `id` binary(16) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `birth_date` date DEFAULT NULL,
+  `gender` varchar(10) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_persons_name_birth` (`name`,`birth_date`),
+  CONSTRAINT `chk_persons_gender` CHECK (((`gender` is null) or (`gender` in (_utf8mb4'male',_utf8mb4'female',_utf8mb4'other'))))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='글로벌 인물 (학생/아이) — 학부모 앱 통합 뷰 SOURCE';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -661,5 +765,10 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260527092043'),
   ('20260527101754'),
   ('20260527102152'),
-  ('20260528071913');
+  ('20260528071913'),
+  ('20260528113525'),
+  ('20260528113526'),
+  ('20260528113527'),
+  ('20260528113528'),
+  ('20260528113529');
 UNLOCK TABLES;

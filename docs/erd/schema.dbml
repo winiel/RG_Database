@@ -604,3 +604,117 @@ Ref: student_abilities.ability_track_id > ability_tracks.id [delete: cascade]
 
 // 업로드
 Ref: uploads.created_by_user_account_id > user_accounts.id [delete: set null]
+
+
+// ============================================================================
+// §5 Phase 5 — Person-centric 모델 v1 (2026-05-28)
+// ============================================================================
+//
+// 합의 근거: Document/RG_Database/2026-05-28-user-add-process-supplement.md
+// Backend v2 response (B1' guardian-first / B5 X / B6 X / B9 Y audit / B10 Z)
+//
+// 모델: 학원장 격리 유지 + 글로벌 persons / guardians 도입
+// 마이그레이션: 5건 (persons / guardians / guardian_persons / guardian_consents / person_link_requests)
+// students.person_id ALTER 는 별도 마이그 6 (사용자 발화 후 진입) — 본 v1 미포함
+// ============================================================================
+
+TableGroup phase5_person_centric [color: #a855f7] {
+    persons
+    guardians
+    guardian_persons
+    guardian_consents
+    person_link_requests
+}
+
+Table persons {
+    id binary(16) [pk]
+    name varchar(100) [not null]
+    birth_date date
+    gender varchar(10) [note: 'CHECK: NULL or male|female|other']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (name, birth_date) [name: 'idx_persons_name_birth']
+    }
+
+    Note: '글로벌 인물 (학생/아이) — 학부모 앱 통합 뷰 SOURCE (B5 X: 최소 식별자만)'
+}
+
+Table guardians {
+    id binary(16) [pk]
+    phone varchar(20) [not null, note: 'B1'' 1차 lookup 키 — exact match']
+    name varchar(100) [not null]
+    email varchar(255)
+    password_hash varchar(255) [note: 'B4'' SMS OTP 통일 — 비밀번호 인증 옵션']
+    last_login_at datetime
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        phone [unique, name: 'uq_guardians_phone']
+    }
+
+    Note: '글로벌 보호자 계정 (학부모 앱) — user_accounts 와 별도 인증 stack (B6 X)'
+}
+
+Table guardian_persons {
+    id binary(16) [pk]
+    guardian_id binary(16) [not null]
+    person_id binary(16) [not null]
+    relationship varchar(20) [not null, note: 'mother | father | guardian | grandparent | other']
+    created_at datetime [not null]
+
+    Indexes {
+        (guardian_id, person_id) [unique, name: 'uq_guardian_persons']
+        person_id [name: 'idx_guardian_persons_person']
+    }
+
+    Note: '보호자 ↔ 아이 N:M 매핑 (claimed 상태) — 형제자매 자동 그룹 매칭 SOURCE (B10 Z)'
+}
+
+Table guardian_consents {
+    id binary(16) [pk]
+    guardian_id binary(16) [not null]
+    person_id binary(16) [not null]
+    action varchar(30) [not null, note: 'CHECK: claim_person | link_to_academy | revoke | reauth']
+    otp_verified_at datetime [not null, note: 'SMS OTP 검증 완료 시각']
+    consented_at datetime [not null]
+    revoked_at datetime [note: 'NULL=활성 / NOT NULL=철회됨']
+    ip_address varchar(45) [note: 'IPv4/IPv6 audit 보강']
+    user_agent varchar(255) [note: 'client UA audit 보강']
+
+    Indexes {
+        (guardian_id, consented_at) [name: 'idx_consents_guardian']
+        (person_id, consented_at) [name: 'idx_consents_person']
+    }
+
+    Note: '학부모 동의 audit (개인정보보호법 시행령 §29 정합, B9 Y)'
+}
+
+Table person_link_requests {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    student_id binary(16) [not null]
+    person_id binary(16) [not null]
+    initiator varchar(20) [not null, note: 'CHECK: academy (Type A'') | guardian (Type B)']
+    status varchar(20) [not null, default: 'pending', note: 'CHECK: pending | approved | rejected | expired']
+    requested_at datetime [not null]
+    resolved_at datetime
+    expires_at datetime [not null, note: 'B2 Z — 30일 권장']
+
+    Indexes {
+        (tenant_id, status) [name: 'idx_plr_tenant_status']
+        (person_id, status) [name: 'idx_plr_person_status']
+    }
+
+    Note: '학원 ↔ 학생 ↔ person 매칭 요청 워크플로우 (Type A''/B)'
+}
+
+// Phase 5 논리 참조 (FK 미선언 — 시각화 전용)
+Ref: guardian_persons.guardian_id > guardians.id [delete: restrict]
+Ref: guardian_persons.person_id > persons.id [delete: restrict]
+Ref: guardian_consents.guardian_id > guardians.id [delete: restrict]
+Ref: guardian_consents.person_id > persons.id [delete: restrict]
+Ref: person_link_requests.person_id > persons.id [delete: restrict]
+Ref: person_link_requests.student_id > students.id [delete: restrict]
