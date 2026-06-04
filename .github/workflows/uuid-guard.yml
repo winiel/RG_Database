@@ -1,0 +1,35 @@
+name: UUID byte order guard
+
+# RG_Backend 발의 (2026-06-04) δ scope CI 가드.
+# 신규 변경 라인에서 `UUID_TO_BIN(UUID(...))` 패턴 차단.
+# 기존 hybrid row 잔존은 보존 (uuid-byte-order-guide §5).
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  uuid-guard:
+    name: Diff-only UUID pattern check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve base ref
+        id: base
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            # push 이벤트 — 직전 commit 대비. 새 브랜치는 zeros SHA → script 측에서 skip
+            BASE_SHA="${{ github.event.before }}"
+          fi
+          echo "sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Run check-uuid-pattern.sh (diff mode)
+        run: ./scripts/checks/check-uuid-pattern.sh --diff "${{ steps.base.outputs.sha }}"
