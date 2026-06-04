@@ -239,11 +239,11 @@ Table classes {
     subject_id binary(16)
     teacher_id binary(16)
     room_id binary(16) [note: 'NULL 허용 (강의실 미지정)']
-    days_of_week json [note: 'JSON: ISO 요일 배열 [1,3,5] = 월수금']
+    days_of_week json [not null, note: 'JSON: ISO 요일 배열 [1,3,5] = 월수금. CHECK: JSON_LENGTH >= 1']
     start_time time
     end_time time
     capacity int [note: 'unsigned, 정원']
-    status varchar(20) [not null, default: 'active', note: 'CHECK: active|paused|ended']
+    status varchar(20) [not null, default: 'active', note: 'CHECK: active|paused|ended|archived']
     started_at datetime
     created_at datetime [not null]
     updated_at datetime [not null]

@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-31718';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '';
 
 --
 -- Table structure for table `ability_tracks`
@@ -175,7 +175,7 @@ CREATE TABLE `classes` (
   `subject_id` binary(16) DEFAULT NULL,
   `teacher_id` binary(16) DEFAULT NULL,
   `room_id` binary(16) DEFAULT NULL,
-  `days_of_week` json DEFAULT NULL,
+  `days_of_week` json NOT NULL,
   `start_time` time DEFAULT NULL,
   `end_time` time DEFAULT NULL,
   `capacity` int unsigned DEFAULT NULL,
@@ -188,7 +188,8 @@ CREATE TABLE `classes` (
   KEY `idx_classes_tenant_id_subject_id` (`tenant_id`,`subject_id`),
   KEY `idx_classes_tenant_id_teacher_id` (`tenant_id`,`teacher_id`),
   KEY `idx_classes_tenant_id_room_id` (`tenant_id`,`room_id`),
-  CONSTRAINT `chk_classes_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'paused',_utf8mb4'ended')))
+  CONSTRAINT `chk_classes_days_of_week_not_empty` CHECK ((json_length(`days_of_week`) >= 1)),
+  CONSTRAINT `chk_classes_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'paused',_utf8mb4'ended',_utf8mb4'archived')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -473,7 +474,7 @@ CREATE TABLE `rooms` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `schema_migrations` (
-  `version` varchar(255) NOT NULL,
+  `version` varchar(128) NOT NULL,
   PRIMARY KEY (`version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -621,9 +622,9 @@ CREATE TABLE `students` (
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_students_auto_person_id` BEFORE INSERT ON `students` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`projectrg_admin`@`%`*/ /*!50003 TRIGGER `trg_students_auto_person_id` BEFORE INSERT ON `students` FOR EACH ROW BEGIN
     DECLARE new_pid BINARY(16);
     IF NEW.person_id IS NULL THEN
         SET new_pid = UUID_TO_BIN(UUID(), 1);
@@ -802,5 +803,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260528113529'),
   ('20260528114510'),
   ('20260528123600'),
-  ('20260528152603');
+  ('20260528152603'),
+  ('20260604053804');
 UNLOCK TABLES;
