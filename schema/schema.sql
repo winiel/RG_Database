@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-94256';
 
 --
 -- Table structure for table `ability_tracks`
@@ -474,7 +474,7 @@ CREATE TABLE `rooms` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `schema_migrations` (
-  `version` varchar(128) NOT NULL,
+  `version` varchar(255) NOT NULL,
   PRIMARY KEY (`version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -600,6 +600,7 @@ CREATE TABLE `students` (
   `grade` varchar(20) DEFAULT NULL,
   `profile_image_url` varchar(500) DEFAULT NULL,
   `address` varchar(255) DEFAULT NULL,
+  `phone` varchar(20) DEFAULT NULL,
   `registered_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `status` varchar(20) NOT NULL DEFAULT 'active',
   `parent` json DEFAULT NULL,
@@ -608,6 +609,7 @@ CREATE TABLE `students` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_students_tenant_name_phone` (`tenant_id`,`name`,`phone`),
   KEY `idx_students_tenant_id_status` (`tenant_id`,`status`),
   KEY `idx_students_tenant_id_parent_phone` (`tenant_id`,`parent_phone`),
   KEY `idx_students_tenant_id_name` (`tenant_id`,`name`),
@@ -782,5 +784,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260528123600'),
   ('20260528152603'),
   ('20260604053804'),
-  ('20260604121944');
+  ('20260604121944'),
+  ('20260605042052');
 UNLOCK TABLES;

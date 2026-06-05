@@ -137,6 +137,7 @@ Table students {
     grade varchar(20)
     profile_image_url varchar(500)
     address varchar(255)
+    phone varchar(20) [note: '학생 본인 phone (Q-2 — 동명이인 식별, NULL 허용)']
     registered_at datetime [not null, default: 'CURRENT_TIMESTAMP']
     status varchar(20) [not null, default: 'active', note: 'CHECK: active|paused|withdrawn']
     parent json [note: 'JSON: {name, relation, phone, ...}']
@@ -146,6 +147,7 @@ Table students {
     updated_at datetime [not null]
 
     Indexes {
+        (tenant_id, name, phone) [unique, name: 'uk_students_tenant_name_phone']
         (tenant_id, status) [name: 'idx_students_tenant_id_status']
         (tenant_id, parent_phone) [name: 'idx_students_tenant_id_parent_phone']
         (tenant_id, name) [name: 'idx_students_tenant_id_name']
