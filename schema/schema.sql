@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-94256';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-188438';
 
 --
 -- Table structure for table `ability_tracks`
@@ -163,6 +163,26 @@ CREATE TABLE `class_ability_tracks` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `class_cancellations`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `class_cancellations` (
+  `id` binary(16) NOT NULL,
+  `tenant_id` binary(16) NOT NULL,
+  `class_id` binary(16) NOT NULL,
+  `cancelled_date` date NOT NULL,
+  `reason` varchar(255) DEFAULT NULL COMMENT '휴강 사유 (예: 공휴일, 강사 사정) — 선택',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_class_cancellations_tenant_id_class_id_cancelled_date` (`tenant_id`,`class_id`,`cancelled_date`),
+  KEY `idx_class_cancellations_tenant_id_cancelled_date` (`tenant_id`,`cancelled_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='클래스 휴강 — 반복 클래스의 특정 날짜 1회 수업 취소 기록 (폐강=classes.status ended 와 별개)';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `classes`
 --
 
@@ -175,7 +195,9 @@ CREATE TABLE `classes` (
   `subject_id` binary(16) DEFAULT NULL,
   `teacher_id` binary(16) DEFAULT NULL,
   `room_id` binary(16) DEFAULT NULL,
-  `days_of_week` json NOT NULL,
+  `days_of_week` json DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
   `start_time` time DEFAULT NULL,
   `end_time` time DEFAULT NULL,
   `capacity` int unsigned DEFAULT NULL,
@@ -188,7 +210,10 @@ CREATE TABLE `classes` (
   KEY `idx_classes_tenant_id_subject_id` (`tenant_id`,`subject_id`),
   KEY `idx_classes_tenant_id_teacher_id` (`tenant_id`,`teacher_id`),
   KEY `idx_classes_tenant_id_room_id` (`tenant_id`,`room_id`),
-  CONSTRAINT `chk_classes_days_of_week_not_empty` CHECK ((json_length(`days_of_week`) >= 1)),
+  KEY `idx_classes_tenant_status_end_date` (`tenant_id`,`status`,`end_date`),
+  KEY `idx_classes_tenant_start_date` (`tenant_id`,`start_date`),
+  CONSTRAINT `chk_classes_date_range` CHECK (((`start_date` is null) or (`end_date` is null) or (`end_date` >= `start_date`))),
+  CONSTRAINT `chk_classes_days_of_week_not_empty` CHECK (((`days_of_week` is null) or (json_length(`days_of_week`) >= 1))),
   CONSTRAINT `chk_classes_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'paused',_utf8mb4'ended',_utf8mb4'archived')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -785,5 +810,7 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260528152603'),
   ('20260604053804'),
   ('20260604121944'),
-  ('20260605042052');
+  ('20260605042052'),
+  ('20260610000000'),
+  ('20260610010000');
 UNLOCK TABLES;
