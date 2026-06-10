@@ -10,7 +10,7 @@
 #   # 로컬 (기본값 — root@127.0.0.1, no password)
 #   ./scripts/checks/validate-seed.sh
 #
-#   # AWS Dev RDS (load-master-secret.sh 와 정합)
+#   # AWS production RDS (load-master-secret.sh 와 정합)
 #   export PATH="/usr/local/opt/mysql-client@8.4/bin:$PATH"
 #   eval "$(./scripts/aws-dev/load-master-secret.sh)"
 #   DB_HOST="$RDS_HOST" DB_PORT="$RDS_PORT" DB_NAME="$RDS_DB_NAME" \

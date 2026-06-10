@@ -4,7 +4,7 @@
 #
 # 근거: Database 발의 §5.2 / Backend 회신 ef57c5f §1 (A-ii + 단일 묶음)
 # 영향: persons + students + guardian_persons + person_link_requests + guardian_consents (5 테이블)
-#       dev RDS 시점 = persons 27 / students 27 / 의존 3 테이블 0 rows
+#       production RDS 시점 = persons 27 / students 27 / 의존 3 테이블 0 rows
 #
 # Dependency:
 #   - Backend code 라이브 완료 (person_id 명시 bind, trigger 미호출 정합)

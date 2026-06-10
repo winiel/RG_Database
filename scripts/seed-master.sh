@@ -9,11 +9,11 @@
 # 사용:
 #   ./scripts/seed-master.sh                            # 로컬 (.env DATABASE_URL)
 #   eval "$(./scripts/aws-dev/load-master-secret.sh)" \
-#     && ./scripts/seed-master.sh                       # AWS Dev RDS
+#     && ./scripts/seed-master.sh                       # AWS production RDS
 #
 # 환경 변수:
 #   DATABASE_URL    (.env에서 로드, 예: mysql://root@127.0.0.1:3306/ProjectRG_Dev)
-#                   AWS Dev 사용 시 load-master-secret.sh 가 export
+#                   AWS production 사용 시 load-master-secret.sh 가 export
 # ============================================================================
 
 set -euo pipefail

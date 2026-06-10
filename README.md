@@ -52,7 +52,7 @@ RG_Database/
 | AWS Stg | `ProjectRG_Stg` | RDS (Phase 3) |
 | AWS Prod | `ProjectRG_Prod` | RDS → Aurora MySQL (Phase 4) |
 
-### AWS Dev RDS 접속
+### AWS production RDS 접속
 
 ```bash
 # 1회 준비
@@ -73,7 +73,7 @@ APP_PASSWORD=$(echo "$APP_SECRET" | jq -r .password)
 mysql -h "$RDS_HOST" -P 3306 -u "$APP_USER" -p"$APP_PASSWORD" --ssl-mode=REQUIRED ProjectRG_Dev
 ```
 
-> dev RDS는 퍼블릭 액세스 + Security Group IP whitelist 방식. 새 IP에서 접속하려면 `aws ec2 authorize-security-group-ingress`로 SG에 IP/32 추가. TLS 검증은 dev에서 `skip-verify` 사용 — 운영 시 [AWS RDS Combined CA](https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem) 등록 권장.
+> production RDS는 퍼블릭 액세스 + Security Group IP whitelist 방식. 새 IP에서 접속하려면 `aws ec2 authorize-security-group-ingress`로 SG에 IP/32 추가. TLS 검증은 dev에서 `skip-verify` 사용 — 운영 시 [AWS RDS Combined CA](https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem) 등록 권장.
 
 ## 빠른 시작 (로컬)
 
