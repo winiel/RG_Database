@@ -637,6 +637,8 @@ Ref: student_abilities.student_id > students.id [delete: cascade]
 Ref: attendances.student_id > students.id [delete: restrict]
 Ref: payments.student_id > students.id [delete: restrict]
 Ref: vision_verifications.student_id > students.id [delete: restrict]
+Ref: billing_schedules.student_id > students.id [delete: restrict]
+Ref: payment_adjustments.student_id > students.id [delete: restrict]
 
 // 클래스
 Ref: student_classes.class_id > classes.id [delete: cascade]
@@ -774,5 +776,5 @@ Ref: guardian_persons.person_id > persons.id [delete: restrict]
 Ref: guardian_consents.guardian_id > guardians.id [delete: restrict]
 Ref: guardian_consents.person_id > persons.id [delete: restrict]
 Ref: person_link_requests.person_id > persons.id [delete: restrict]
-Ref: person_link_requests.student_id > students.id [delete: restrict]
+Ref: person_link_requests.student_id > students.id [delete: cascade]
 Ref: students.person_id > persons.id [delete: restrict]  // Phase 5 마이그 6 — 1:1 backfill 후 NOT NULL
