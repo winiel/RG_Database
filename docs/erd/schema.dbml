@@ -51,6 +51,7 @@ TableGroup payments_events [color: #ef4444] {
     payments
     payment_events
     payment_adjustments
+    billing_schedules
 }
 
 TableGroup notifications_settings [color: #06b6d4] {
@@ -433,6 +434,27 @@ Table payment_adjustments {
     }
 
     Note: '결제 조정 (A 할인 + C 환급 공통 도메인, v1 장부 단계)'
+}
+
+Table billing_schedules {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null]
+    student_id binary(16) [not null]
+    class_id binary(16) [note: 'NULL 허용. 반 단위 청구 시 클래스 / NULL=학생 단위 청구']
+    monthly_fee decimal(12,2) [not null, note: 'CHECK: >= 0. 월 청구액 (payments.amount 대응)']
+    anchor_day tinyint [not null, note: 'CHECK: 1~31. 매달 청구일. 말일 클램프(해당월 일수 초과 시 말일) — Backend 계약']
+    billing_item varchar(255) [not null, note: '청구 항목명 (payment.billing_item 대응)']
+    status varchar(20) [not null, default: 'active', note: 'CHECK: active|paused. 구독 상태']
+    last_generated_for_month date [note: '멱등 키 — 마지막 생성 청구월(YYYY-MM-01)·중복청구 방지']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, status, last_generated_for_month) [name: 'idx_billing_schedules_tenant_id_status_last_generated_for_month']
+        (tenant_id, student_id) [name: 'idx_billing_schedules_tenant_id_student_id']
+    }
+
+    Note: '정기 결제(매달 자동 청구) 생성용 청구 소스 — 구독 단위 청구 룰+멱등 키 (BE daily_billing_generator 소비). payment(할인·부분수금 반영)와 분리한 독립 소스'
 }
 
 // ─── §4.6 알림/설정 ──────────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-188438';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-221058';
 
 --
 -- Table structure for table `ability_tracks`
@@ -140,6 +140,33 @@ CREATE TABLE `attendances` (
   CONSTRAINT `chk_attendances_created_via` CHECK ((`created_via` in (_utf8mb4'manual',_utf8mb4'auto',_utf8mb4'vision',_utf8mb4'ai'))),
   CONSTRAINT `chk_attendances_status` CHECK ((`attendance_status` in (_utf8mb4'present',_utf8mb4'late',_utf8mb4'absent',_utf8mb4'excused')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `billing_schedules`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `billing_schedules` (
+  `id` binary(16) NOT NULL,
+  `tenant_id` binary(16) NOT NULL,
+  `student_id` binary(16) NOT NULL,
+  `class_id` binary(16) DEFAULT NULL COMMENT '반 단위 청구 시 클래스. NULL=학생 단위 청구',
+  `monthly_fee` decimal(12,2) NOT NULL COMMENT '월 청구액 (KRW 정수 권장·payments.amount 대응)',
+  `anchor_day` tinyint NOT NULL COMMENT '매달 청구일 1~31. 말일 클램프: 해당월 일수보다 크면 말일 청구(Backend 계약)',
+  `billing_item` varchar(255) NOT NULL COMMENT '청구 항목명 (payment.billing_item 대응)',
+  `status` varchar(20) NOT NULL DEFAULT 'active' COMMENT '구독 상태: active/paused',
+  `last_generated_for_month` date DEFAULT NULL COMMENT '멱등 키 — 마지막 생성 청구월(YYYY-MM-01)·중복청구 방지',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_billing_schedules_tenant_id_status_last_generated_for_month` (`tenant_id`,`status`,`last_generated_for_month`),
+  KEY `idx_billing_schedules_tenant_id_student_id` (`tenant_id`,`student_id`),
+  CONSTRAINT `chk_billing_schedules_anchor_day` CHECK ((`anchor_day` between 1 and 31)),
+  CONSTRAINT `chk_billing_schedules_monthly_fee` CHECK ((`monthly_fee` >= 0)),
+  CONSTRAINT `chk_billing_schedules_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'paused')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='정기 결제(매달 자동 청구) 생성용 청구 소스 — 구독 단위 청구 룰+멱등 키 (BE daily_billing_generator 소비)';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -812,5 +839,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260604121944'),
   ('20260605042052'),
   ('20260610000000'),
-  ('20260610010000');
+  ('20260610010000'),
+  ('20260611101124');
 UNLOCK TABLES;
