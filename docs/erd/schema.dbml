@@ -145,11 +145,15 @@ Table students {
     parent json [note: 'JSON: {name, relation, phone, ...}']
     parent_name varchar(100) [note: '학부모명 평탄화 (검색용)']
     parent_phone varchar(20) [note: '학부모 전화 평탄화 (lookup용)']
+    is_deleted tinyint(1) [not null, default: 0, note: '논리삭제 플래그 (DB-9). 0=활성 1=삭제']
+    deleted_at datetime [note: '삭제 시각 (논리삭제 DB-9)']
+    deleted_by binary(16) [note: '삭제 주체 uuid (논리삭제 DB-9)']
+    active_uk_token binary(16) [note: 'GENERATED VIRTUAL = IF(is_deleted=0, tenant_id, NULL) (DB-9). active 행만 유니크 참여·삭제 행 면제']
     created_at datetime [not null]
     updated_at datetime [not null]
 
     Indexes {
-        (tenant_id, name, phone) [unique, name: 'uk_students_tenant_name_phone']
+        (name, phone, active_uk_token) [unique, name: 'uk_students_tenant_name_phone', note: 'DB-9 — active(is_deleted=0) 행만 (tenant_id,name,phone) 유니크. 삭제 행은 token=NULL 로 면제·동명/동번호 재등록 허용']
         (tenant_id, status) [name: 'idx_students_tenant_id_status']
         (tenant_id, parent_phone) [name: 'idx_students_tenant_id_parent_phone']
         (tenant_id, name) [name: 'idx_students_tenant_id_name']
@@ -225,6 +229,9 @@ Table teachers {
     joined_at datetime [not null, default: 'CURRENT_TIMESTAMP']
     status varchar(20) [not null, default: 'active', note: 'CHECK: active|inactive|resigned']
     memo text [note: '학원장 자유 메모 (multi-line 허용)']
+    is_deleted tinyint(1) [not null, default: 0, note: '논리삭제 플래그 (DB-9). 0=활성 1=삭제']
+    deleted_at datetime [note: '삭제 시각 (논리삭제 DB-9)']
+    deleted_by binary(16) [note: '삭제 주체 uuid (논리삭제 DB-9)']
     created_at datetime [not null]
     updated_at datetime [not null]
 
@@ -251,6 +258,9 @@ Table classes {
     capacity int [note: 'unsigned, 정원']
     status varchar(20) [not null, default: 'active', note: 'CHECK: active|paused|ended|archived']
     started_at datetime
+    is_deleted tinyint(1) [not null, default: 0, note: '논리삭제 플래그 (DB-9). 0=활성 1=삭제']
+    deleted_at datetime [note: '삭제 시각 (논리삭제 DB-9)']
+    deleted_by binary(16) [note: '삭제 주체 uuid (논리삭제 DB-9)']
     created_at datetime [not null]
     updated_at datetime [not null]
 

@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-221058';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-226192';
 
 --
 -- Table structure for table `ability_tracks`
@@ -232,6 +232,9 @@ CREATE TABLE `classes` (
   `started_at` datetime DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `deleted_at` datetime DEFAULT NULL,
+  `deleted_by` binary(16) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_classes_tenant_id_status` (`tenant_id`,`status`),
   KEY `idx_classes_tenant_id_subject_id` (`tenant_id`,`subject_id`),
@@ -660,8 +663,12 @@ CREATE TABLE `students` (
   `parent_phone` varchar(20) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `deleted_at` datetime DEFAULT NULL,
+  `deleted_by` binary(16) DEFAULT NULL,
+  `active_uk_token` binary(16) GENERATED ALWAYS AS (if((`is_deleted` = 0),`tenant_id`,NULL)) VIRTUAL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_students_tenant_name_phone` (`tenant_id`,`name`,`phone`),
+  UNIQUE KEY `uk_students_tenant_name_phone` (`name`,`phone`,`active_uk_token`),
   KEY `idx_students_tenant_id_status` (`tenant_id`,`status`),
   KEY `idx_students_tenant_id_parent_phone` (`tenant_id`,`parent_phone`),
   KEY `idx_students_tenant_id_name` (`tenant_id`,`name`),
@@ -710,6 +717,9 @@ CREATE TABLE `teachers` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `memo` text COMMENT '강사 내부 메모 (학원장 자유 입력, multi-line)',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `deleted_at` datetime DEFAULT NULL,
+  `deleted_by` binary(16) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_teachers_tenant_id_status` (`tenant_id`,`status`),
   KEY `idx_teachers_tenant_id_subject_id` (`tenant_id`,`subject_id`),
@@ -840,5 +850,7 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260605042052'),
   ('20260610000000'),
   ('20260610010000'),
-  ('20260611101124');
+  ('20260611101124'),
+  ('20260611152905'),
+  ('20260611152906');
 UNLOCK TABLES;
