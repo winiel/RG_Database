@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-226192';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-255492';
 
 --
 -- Table structure for table `ability_tracks`
@@ -59,8 +59,10 @@ CREATE TABLE `academies` (
   `operating_hours` json DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `status` varchar(16) NOT NULL DEFAULT 'pending',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_academies_business_number` (`business_number`)
+  UNIQUE KEY `uq_academies_business_number` (`business_number`),
+  CONSTRAINT `chk_academies_status` CHECK ((`status` in (_utf8mb4'pending',_utf8mb4'active')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -852,5 +854,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260610010000'),
   ('20260611101124'),
   ('20260611152905'),
-  ('20260611152906');
+  ('20260611152906'),
+  ('20260612091334');
 UNLOCK TABLES;

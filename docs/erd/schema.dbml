@@ -86,6 +86,7 @@ Table academies {
     operating_hours json [note: 'JSON: {mon: "10:00-22:00", ...}']
     created_at datetime [not null, default: 'CURRENT_TIMESTAMP']
     updated_at datetime [not null, default: 'CURRENT_TIMESTAMP ON UPDATE']
+    status varchar(16) [not null, default: 'pending', note: 'DB-13 학원 승인 상태. pending|active (CHECK chk_academies_status). 신규 self-signup=pending·기존 운영 학원=active. BE-38 승인 게이트: active만 로그인 허용']
 
     Note: '학원/테넌트 — 멀티테넌시 루트. 자기 자신이 테넌트라 tenant_id 컬럼 없음. 다른 테이블의 tenant_id는 academies.id를 가리키는 논리 참조'
 }
