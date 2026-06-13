@@ -54,6 +54,10 @@ TableGroup payments_events [color: #ef4444] {
     billing_schedules
 }
 
+TableGroup ai_assistant [color: #14b8a6] {
+    ai_assistant_unmet_requests
+}
+
 TableGroup notifications_settings [color: #06b6d4] {
     message_templates
     settings
@@ -466,6 +470,26 @@ Table billing_schedules {
     }
 
     Note: '정기 결제(매달 자동 청구) 생성용 청구 소스 — 구독 단위 청구 룰+멱등 키 (BE daily_billing_generator 소비). payment(할인·부분수금 반영)와 분리한 독립 소스'
+}
+
+// ─── §4.5b AI비서 ────────────────────────────────────────────────────────────
+
+Table ai_assistant_unmet_requests {
+    id binary(16) [pk]
+    tenant_id binary(16) [not null, note: '멀티테넌시 격리(NOT NULL·누락 INSERT 차단). 조회/집계 tenant 범위 한정']
+    utterance text [not null, note: '미충족 요청 발화 원문(사용자 입력 그대로). 긴 발화 대비 TEXT']
+    captured_at datetime [not null, default: `CURRENT_TIMESTAMP`, note: '캡처 시각 — 집계의 시간 축']
+    category varchar(100) [note: 'NULL 허용. 미충족 요청 분류(캡처 시점 미분류 가능·추후 BE/집계 채움 여지)']
+    reason varchar(255) [note: 'NULL 허용. 미충족 사유']
+    session_id binary(16) [note: 'NULL 허용. 발생 세션 참조(반복 패턴 추적용). 물리 FK 없음(앱 레벨)']
+    user_id binary(16) [note: 'NULL 허용. 발화 사용자 참조. 물리 FK 없음(앱 레벨)']
+    created_at datetime [not null]
+
+    Indexes {
+        (tenant_id, captured_at) [name: 'idx_ai_assistant_unmet_requests_tenant_id_captured_at']
+    }
+
+    Note: 'AI비서 미충족 요청 캡처 — 흡수 못한 틀 밖 요청 발화 저장소(append-only·신호 로그·is_deleted 미적용). 자유도 정책 ④ 백로그 캡처. BE-46 INSERT 대상'
 }
 
 // ─── §4.6 알림/설정 ──────────────────────────────────────────────────────────

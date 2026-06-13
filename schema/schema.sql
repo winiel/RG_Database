@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-255492';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-278306';
 
 --
 -- Table structure for table `ability_tracks`
@@ -108,6 +108,27 @@ CREATE TABLE `ai_assistant_sessions` (
   KEY `idx_ai_assistant_sessions_tenant_id_user_id` (`tenant_id`,`user_id`),
   KEY `idx_ai_assistant_sessions_expires_at` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `ai_assistant_unmet_requests`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ai_assistant_unmet_requests` (
+  `id` binary(16) NOT NULL,
+  `tenant_id` binary(16) NOT NULL COMMENT '학원 테넌트 — 멀티테넌시 격리(NOT NULL·누락 INSERT 차단). 조회/집계 tenant 범위 한정',
+  `utterance` text NOT NULL COMMENT '미충족 요청 발화 원문(사용자 입력 텍스트 그대로). 긴 발화 대비 TEXT',
+  `captured_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '캡처 시각 — 집계의 시간 축',
+  `category` varchar(100) DEFAULT NULL COMMENT 'NULL 허용. 미충족 요청 분류(캡처 시점 미분류 가능·추후 BE/집계 채움 여지)',
+  `reason` varchar(255) DEFAULT NULL COMMENT 'NULL 허용. 미충족 사유',
+  `session_id` binary(16) DEFAULT NULL COMMENT 'NULL 허용. 발생 세션 참조(반복 패턴 추적용). 물리 FK 없음(앱 레벨)',
+  `user_id` binary(16) DEFAULT NULL COMMENT 'NULL 허용. 발화 사용자 참조. 물리 FK 없음(앱 레벨)',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ai_assistant_unmet_requests_tenant_id_captured_at` (`tenant_id`,`captured_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='AI비서 미충족 요청 캡처 — 흡수 못한 틀 밖 요청 발화 저장소(append-only·신호 로그). 자유도 정책 ④ 백로그 캡처. BE-46 INSERT 대상';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -855,5 +876,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260611101124'),
   ('20260611152905'),
   ('20260611152906'),
-  ('20260612091334');
+  ('20260612091334'),
+  ('20260613120125');
 UNLOCK TABLES;
