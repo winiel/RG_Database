@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-278306';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-309032';
 
 --
 -- Table structure for table `ability_tracks`
@@ -635,11 +635,13 @@ CREATE TABLE `student_classes` (
   `enrolled_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `unenrolled_at` datetime DEFAULT NULL,
   `status` varchar(20) NOT NULL DEFAULT 'active',
+  `attending_days_of_week` json DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_student_classes_tenant_id_student_id_class_id` (`tenant_id`,`student_id`,`class_id`),
   KEY `idx_student_classes_tenant_id_class_id` (`tenant_id`,`class_id`),
+  CONSTRAINT `chk_student_classes_attending_days_not_empty` CHECK (((`attending_days_of_week` is null) or (json_length(`attending_days_of_week`) >= 1))),
   CONSTRAINT `chk_student_classes_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'unenrolled',_utf8mb4'completed')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -877,5 +879,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260611152905'),
   ('20260611152906'),
   ('20260612091334'),
-  ('20260613120125');
+  ('20260613120125'),
+  ('20260621082349');
 UNLOCK TABLES;
