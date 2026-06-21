@@ -289,6 +289,7 @@ Table student_classes {
     enrolled_at datetime [not null, default: 'CURRENT_TIMESTAMP']
     unenrolled_at datetime
     status varchar(20) [not null, default: 'active', note: 'CHECK: active|unenrolled|completed']
+    attending_days_of_week json [note: 'NULL 허용 (DB-30, 20260621). NULL=클래스 전 요일 추종(현행). 값=부분집합 JSON 배열 0=일~6=토. CHECK: NULL OR JSON_LENGTH >= 1. 요소범위/부분집합은 BE-53 런타임']
     created_at datetime [not null]
     updated_at datetime [not null]
 
