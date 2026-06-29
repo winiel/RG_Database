@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-309032';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-334153';
 
 --
 -- Table structure for table `ability_tracks`
@@ -592,6 +592,7 @@ CREATE TABLE `settings` (
   `tenant_id` binary(16) NOT NULL,
   `payment_settings` json DEFAULT NULL,
   `notification_settings` json DEFAULT NULL,
+  `auto_attendance_enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '자동 출결 활성 여부 (TRUE=활성, FALSE=비활성)',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -880,5 +881,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260611152906'),
   ('20260612091334'),
   ('20260613120125'),
-  ('20260621082349');
+  ('20260621082349'),
+  ('20260629044913');
 UNLOCK TABLES;

@@ -519,6 +519,7 @@ Table settings {
     tenant_id binary(16) [not null, unique]
     payment_settings json
     notification_settings json
+    auto_attendance_enabled tinyint(1) [not null, default: 1, note: '자동 출결 활성 여부 (DB-31, 20260629). 1=활성(TRUE) 0=비활성(FALSE). 학원별 자동출결 on/off. NOT NULL DEFAULT TRUE = 기존행 전부 활성 backfill·신규행도 활성. BE-61 소비']
     created_at datetime [not null]
     updated_at datetime [not null]
 
