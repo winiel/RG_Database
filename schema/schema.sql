@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-346063';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-353227';
 
 --
 -- Table structure for table `ability_tracks`
@@ -673,6 +673,30 @@ CREATE TABLE `student_classes` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `student_custom_fields`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `student_custom_fields` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `tenant_id` binary(16) NOT NULL,
+  `slot` tinyint NOT NULL COMMENT '슬롯 1~5',
+  `enabled` tinyint(1) NOT NULL DEFAULT '0' COMMENT '사용여부(1=사용·0=미사용)',
+  `title` varchar(60) DEFAULT NULL COMMENT '학원별 필드 제목',
+  `field_type` varchar(16) NOT NULL COMMENT 'text|number|select',
+  `options` json DEFAULT NULL COMMENT '선택박스 옵션 배열(select 타입만)',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_student_custom_fields_tenant_id_slot` (`tenant_id`,`slot`),
+  CONSTRAINT `chk_student_custom_fields_options` CHECK (((`options` is null) or json_valid(`options`))),
+  CONSTRAINT `chk_student_custom_fields_slot` CHECK ((`slot` between 1 and 5)),
+  CONSTRAINT `chk_student_custom_fields_type` CHECK ((`field_type` in (_utf8mb4'text',_utf8mb4'number',_utf8mb4'select')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='학생 커스텀 필드 정의 — 학원(테넌트)별 5슬롯. 값은 students.custom_values(JSON). 미사용 필드 미표시·타입 text|number|select';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `student_notes`
 --
 
@@ -712,6 +736,7 @@ CREATE TABLE `students` (
   `parent` json DEFAULT NULL,
   `parent_name` varchar(100) DEFAULT NULL,
   `parent_phone` varchar(20) DEFAULT NULL,
+  `custom_values` json DEFAULT NULL COMMENT '학생별 커스텀 필드 값 {slot: value}. 미사용 전환 시 해당 slot 키 제거(BE-69)',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
@@ -909,5 +934,7 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260621082349'),
   ('20260629044913'),
   ('20260704065422'),
-  ('20260704065423');
+  ('20260704065423'),
+  ('20260704081024'),
+  ('20260704081025');
 UNLOCK TABLES;

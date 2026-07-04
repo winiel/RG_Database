@@ -30,6 +30,7 @@ TableGroup auth_tenancy [color: #3b82f6] {
 TableGroup students_notes [color: #10b981] {
     students
     student_notes
+    student_custom_fields
 }
 
 TableGroup classes_master [color: #f59e0b] {
@@ -151,6 +152,7 @@ Table students {
     parent json [note: 'JSON: {name, relation, phone, ...}']
     parent_name varchar(100) [note: '학부모명 평탄화 (검색용)']
     parent_phone varchar(20) [note: '학부모 전화 평탄화 (lookup용)']
+    custom_values json [note: 'DB-34 — 학생별 커스텀 필드 값 {slot: value}. 미사용 전환 시 slot 키 제거(BE-69). 검색 요구 없어 최소 구현']
     is_deleted tinyint(1) [not null, default: 0, note: '논리삭제 플래그 (DB-9). 0=활성 1=삭제']
     deleted_at datetime [note: '삭제 시각 (논리삭제 DB-9)']
     deleted_by binary(16) [note: '삭제 주체 uuid (논리삭제 DB-9)']
@@ -188,6 +190,24 @@ Table student_notes {
     }
 
     Note: '학원장 메모 (학생 1:1)'
+}
+
+Table student_custom_fields {
+    id binary(16) [pk, note: 'UUID v7 — 앱 측 생성']
+    tenant_id binary(16) [not null]
+    slot tinyint [not null, note: '슬롯 1~5. CHECK(slot BETWEEN 1 AND 5)']
+    enabled tinyint(1) [not null, default: 0, note: '사용여부(1=사용·0=미사용). 미사용 필드는 학생 정보 미표시']
+    title varchar(60) [note: '학원별 필드 제목. NULL 허용']
+    field_type varchar(16) [not null, note: "CHECK IN('text','number','select')"]
+    options json [note: '선택박스 옵션 배열(select 타입만). CHECK(options IS NULL OR json_valid(options))']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, slot) [unique, name: 'uq_student_custom_fields_tenant_id_slot']
+    }
+
+    Note: '학생 커스텀 필드 정의 (DB-34) — 학원(테넌트)별 5슬롯. 값은 students.custom_values(JSON). subjects·ability_tracks 패턴 복제·물리 FK 없음·검색 요구 없어 UNIQUE(tenant,slot)만'
 }
 
 // ─── §4.3 클래스/강사/마스터 ─────────────────────────────────────────────────
