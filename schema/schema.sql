@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-353227';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-388734';
 
 --
 -- Table structure for table `ability_tracks`
@@ -290,6 +290,7 @@ CREATE TABLE `classes` (
   KEY `idx_classes_tenant_id_room_id` (`tenant_id`,`room_id`),
   KEY `idx_classes_tenant_status_end_date` (`tenant_id`,`status`,`end_date`),
   KEY `idx_classes_tenant_start_date` (`tenant_id`,`start_date`),
+  CONSTRAINT `chk_classes_active_requires_time` CHECK (((`status` <> _utf8mb4'active') or ((`start_time` is not null) and (`end_time` is not null)))),
   CONSTRAINT `chk_classes_date_range` CHECK (((`start_date` is null) or (`end_date` is null) or (`end_date` >= `start_date`))),
   CONSTRAINT `chk_classes_days_of_week_not_empty` CHECK (((`days_of_week` is null) or (json_length(`days_of_week`) >= 1))),
   CONSTRAINT `chk_classes_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'paused',_utf8mb4'ended',_utf8mb4'archived')))
@@ -936,5 +937,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260704065422'),
   ('20260704065423'),
   ('20260704081024'),
-  ('20260704081025');
+  ('20260704081025'),
+  ('20260704140416');
 UNLOCK TABLES;
