@@ -40,6 +40,7 @@ TableGroup classes_master [color: #f59e0b] {
     student_classes
     holidays
     class_cancellations
+    class_suspensions
 }
 
 TableGroup attendance_vision [color: #8b5cf6] {
@@ -331,7 +332,28 @@ Table class_cancellations {
         (tenant_id, cancelled_date) [name: 'idx_class_cancellations_tenant_id_cancelled_date']
     }
 
-    Note: '클래스 휴강 — 반복 클래스의 특정 날짜 1회 수업 취소 기록 (폐강=classes.status ended 와 별개). undo=행 삭제(옵션 A). 출석 집계 제외는 런타임(Backend BE-21)'
+    Note: '클래스 휴강 — 반복 클래스의 특정 날짜 1회 수업 취소 기록 (폐강=classes.status ended 와 별개). undo=행 삭제(옵션 A). 출석 집계 제외는 런타임(Backend BE-21). ★DB-33: class_suspensions 로 통합 이관 후 파괴적 정리 ③에서 DROP 예정(BE-65 배포 게이트)'
+}
+
+Table class_suspensions {
+    id binary(16) [pk, note: 'UUID v7 — 앱 측 생성']
+    tenant_id binary(16) [not null]
+    class_id binary(16) [not null]
+    start_date date [not null, note: '휴강 시작일(포함)']
+    end_date date [note: 'NULL=무기한. 휴강 종료일(포함)']
+    reason varchar(255) [note: 'NULL 허용. 휴강 사유']
+    is_deleted tinyint(1) [not null, default: 0, note: '논리삭제(1=삭제=휴강 해제)']
+    deleted_at datetime [note: 'NULL 허용']
+    deleted_by binary(16) [note: 'NULL 허용']
+    created_at datetime [not null]
+    updated_at datetime [not null]
+
+    Indexes {
+        (tenant_id, class_id, start_date) [name: 'idx_class_suspensions_tenant_id_class_id_start_date']
+        (tenant_id, start_date, end_date) [name: 'idx_class_suspensions_tenant_id_start_date_end_date']
+    }
+
+    Note: '휴강 통합 (DB-33) — 단일(start=end)/기간(start..end)/무기한(end NULL) 단일 소스. 판정식: start_date <= D AND (end_date IS NULL OR end_date >= D). CHECK(end_date IS NULL OR end_date >= start_date). 겹침 검증은 앱 레벨(BE-65). class_cancellations·classes.status=paused 를 통합 대체. 물리 FK 없음·is_deleted 논리삭제'
 }
 
 // ─── §4.4 출결/Vision ────────────────────────────────────────────────────────

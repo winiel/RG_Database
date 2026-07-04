@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-334153';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-346063';
 
 --
 -- Table structure for table `ability_tracks`
@@ -230,6 +230,31 @@ CREATE TABLE `class_cancellations` (
   UNIQUE KEY `uq_class_cancellations_tenant_id_class_id_cancelled_date` (`tenant_id`,`class_id`,`cancelled_date`),
   KEY `idx_class_cancellations_tenant_id_cancelled_date` (`tenant_id`,`cancelled_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='클래스 휴강 — 반복 클래스의 특정 날짜 1회 수업 취소 기록 (폐강=classes.status ended 와 별개)';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `class_suspensions`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `class_suspensions` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `tenant_id` binary(16) NOT NULL,
+  `class_id` binary(16) NOT NULL,
+  `start_date` date NOT NULL COMMENT '휴강 시작일(포함)',
+  `end_date` date DEFAULT NULL COMMENT '휴강 종료일(포함). NULL=무기한',
+  `reason` varchar(255) DEFAULT NULL COMMENT '휴강 사유 — 선택',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '논리삭제(1=삭제=휴강 해제)',
+  `deleted_at` datetime DEFAULT NULL,
+  `deleted_by` binary(16) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_class_suspensions_tenant_id_class_id_start_date` (`tenant_id`,`class_id`,`start_date`),
+  KEY `idx_class_suspensions_tenant_id_start_date_end_date` (`tenant_id`,`start_date`,`end_date`),
+  CONSTRAINT `chk_class_suspensions_date_order` CHECK (((`end_date` is null) or (`end_date` >= `start_date`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='휴강 통합 — 단일(start=end)/기간(start..end)/무기한(end NULL). 단일 소스(class_cancellations·status=paused 대체)';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -882,5 +907,7 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260612091334'),
   ('20260613120125'),
   ('20260621082349'),
-  ('20260629044913');
+  ('20260629044913'),
+  ('20260704065422'),
+  ('20260704065423');
 UNLOCK TABLES;
