@@ -40,7 +40,6 @@ TableGroup classes_master [color: #f59e0b] {
     classes
     student_classes
     holidays
-    class_cancellations
     class_suspensions
 }
 
@@ -282,7 +281,7 @@ Table classes {
     start_time time [note: 'NULL 허용(비활성 상태). CHECK chk_classes_active_requires_time (DB-36): status=active 면 필수']
     end_time time [note: 'NULL 허용(비활성 상태). status=active 면 start_time·end_time 필수 (DB-36)']
     capacity int [note: 'unsigned, 정원']
-    status varchar(20) [not null, default: 'active', note: 'CHECK: active|paused|ended|archived. active 면 start_time/end_time 필수(DB-36 chk_classes_active_requires_time)']
+    status varchar(20) [not null, default: 'active', note: 'CHECK: active|ended|archived (DB-33 ③: paused 제거·휴강은 class_suspensions). active 면 start_time/end_time 필수(DB-36 chk_classes_active_requires_time)']
     started_at datetime
     is_deleted tinyint(1) [not null, default: 0, note: '논리삭제 플래그 (DB-9). 0=활성 1=삭제']
     deleted_at datetime [note: '삭제 시각 (논리삭제 DB-9)']
@@ -338,22 +337,8 @@ Table holidays {
     Note: '휴무일'
 }
 
-Table class_cancellations {
-    id binary(16) [pk]
-    tenant_id binary(16) [not null]
-    class_id binary(16) [not null]
-    cancelled_date date [not null, note: '휴강일 (날짜 단위, 시간 성분 없음)']
-    reason varchar(255) [note: 'NULL 허용. 휴강 사유 (예: 공휴일, 강사 사정)']
-    created_at datetime [not null]
-    updated_at datetime [not null]
-
-    Indexes {
-        (tenant_id, class_id, cancelled_date) [unique, name: 'uq_class_cancellations_tenant_id_class_id_cancelled_date']
-        (tenant_id, cancelled_date) [name: 'idx_class_cancellations_tenant_id_cancelled_date']
-    }
-
-    Note: '클래스 휴강 — 반복 클래스의 특정 날짜 1회 수업 취소 기록 (폐강=classes.status ended 와 별개). undo=행 삭제(옵션 A). 출석 집계 제외는 런타임(Backend BE-21). ★DB-33: class_suspensions 로 통합 이관 후 파괴적 정리 ③에서 DROP 예정(BE-65 배포 게이트)'
-}
+// (DB-33 ③·2026-07-05 prod 배포) Table class_cancellations DROP 완료 — class_suspensions 로 통합 이관.
+//   구 특정 날짜 1회 휴강(cancelled_date)은 class_suspensions 의 단일(start=end) 로 흡수됨.
 
 Table class_suspensions {
     id binary(16) [pk, note: 'UUID v7 — 앱 측 생성']
