@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-388768';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-392689';
 
 --
 -- Table structure for table `ability_tracks`
@@ -64,6 +64,41 @@ CREATE TABLE `academies` (
   UNIQUE KEY `uq_academies_business_number` (`business_number`),
   CONSTRAINT `chk_academies_status` CHECK ((`status` in (_utf8mb4'pending',_utf8mb4'active')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `academy_subscriptions`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `academy_subscriptions` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `academy_id` binary(16) NOT NULL COMMENT 'academies.id (=tenant_id)·학원당 1행',
+  `plan` varchar(16) NOT NULL DEFAULT 'basic' COMMENT 'basic(무료·AI 없음) | pro(20000/월·AI 포함)',
+  `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT 'active | trialing | canceled | past_due',
+  `toss_billing_key` varchar(255) DEFAULT NULL COMMENT '★민감 — 토스 빌링키(정기결제). BE 전용·응답 노출 금지',
+  `toss_customer_key` varchar(255) DEFAULT NULL COMMENT '토스 customerKey',
+  `card_company` varchar(40) DEFAULT NULL COMMENT '카드사(표시용)',
+  `card_number_masked` varchar(32) DEFAULT NULL COMMENT '마스킹 카드번호(표시용)',
+  `trial_end_at` datetime DEFAULT NULL COMMENT '무료체험 종료 시각',
+  `current_period_start` datetime DEFAULT NULL COMMENT '현재 구독 주기 시작',
+  `current_period_end` datetime DEFAULT NULL COMMENT '현재 구독 주기 종료',
+  `next_billing_date` date DEFAULT NULL COMMENT '다음 정기결제 청구일(배치 조회 키)',
+  `price_amount` int NOT NULL DEFAULT '20000' COMMENT '월 구독료(KRW·Pro=20000)',
+  `canceled_at` datetime DEFAULT NULL COMMENT '해지 시각',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '논리삭제(1=삭제)',
+  `deleted_at` datetime DEFAULT NULL,
+  `deleted_by` binary(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_academy_subscriptions_academy` (`academy_id`),
+  KEY `idx_academy_subscriptions_status` (`status`),
+  KEY `idx_academy_subscriptions_next_billing` (`next_billing_date`),
+  CONSTRAINT `chk_academy_subscriptions_plan` CHECK ((`plan` in (_utf8mb4'basic',_utf8mb4'pro'))),
+  CONSTRAINT `chk_academy_subscriptions_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'trialing',_utf8mb4'canceled',_utf8mb4'past_due')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='RGuardians→학원 서비스 구독 상태 — 학원(테넌트)당 1행(academy_id UNIQUE). plan basic|pro·toss_billing_key 민감(BE 전용). 학생 청구(payments·billing_schedules)와 별개 도메인';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -753,6 +788,38 @@ CREATE TABLE `subjects` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `subscription_payments`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `subscription_payments` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `academy_id` binary(16) NOT NULL COMMENT 'academies.id (논리 참조)',
+  `subscription_id` binary(16) NOT NULL COMMENT 'academy_subscriptions.id (논리 참조)',
+  `toss_payment_key` varchar(255) DEFAULT NULL COMMENT '토스 paymentKey',
+  `toss_order_id` varchar(64) NOT NULL COMMENT '토스 orderId(멱등 키)',
+  `amount` int NOT NULL COMMENT '결제 금액(KRW)',
+  `status` varchar(16) NOT NULL DEFAULT 'pending' COMMENT 'pending | done | failed | canceled',
+  `billing_type` varchar(16) NOT NULL COMMENT 'first(최초 결제) | recurring(정기 결제)',
+  `requested_at` datetime DEFAULT NULL COMMENT '결제 요청 시각',
+  `approved_at` datetime DEFAULT NULL COMMENT '결제 승인 시각',
+  `receipt_url` varchar(500) DEFAULT NULL COMMENT '토스 영수증 URL',
+  `failure_code` varchar(64) DEFAULT NULL COMMENT '실패 코드(토스)',
+  `failure_reason` varchar(255) DEFAULT NULL COMMENT '실패 사유(토스)',
+  `raw_response` json DEFAULT NULL COMMENT '토스 응답 원본(감사/디버깅)',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_subscription_payments_order` (`toss_order_id`),
+  KEY `idx_subscription_payments_academy` (`academy_id`),
+  KEY `idx_subscription_payments_status` (`status`),
+  CONSTRAINT `chk_subscription_payments_raw` CHECK (((`raw_response` is null) or json_valid(`raw_response`))),
+  CONSTRAINT `chk_subscription_payments_status` CHECK ((`status` in (_utf8mb4'pending',_utf8mb4'done',_utf8mb4'failed',_utf8mb4'canceled'))),
+  CONSTRAINT `chk_subscription_payments_type` CHECK ((`billing_type` in (_utf8mb4'first',_utf8mb4'recurring')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='RGuardians→학원 서비스 구독 결제 이력 — 토스 결제 건별·이력 보존(append-only). toss_order_id UNIQUE 멱등. 학생 청구(payments)와 별개 도메인';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `teachers`
 --
 
@@ -919,5 +986,7 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260704065424'),
   ('20260704081024'),
   ('20260704081025'),
-  ('20260704140416');
+  ('20260704140416'),
+  ('20260706072214'),
+  ('20260706072215');
 UNLOCK TABLES;

@@ -500,6 +500,65 @@ Table billing_schedules {
     Note: '정기 결제(매달 자동 청구) 생성용 청구 소스 — 구독 단위 청구 룰+멱등 키 (BE daily_billing_generator 소비). payment(할인·부분수금 반영)와 분리한 독립 소스'
 }
 
+// ─── §4.5c RGuardians 서비스 구독/토스 빌링 (DB-38·2026-07-06) ──────────────────
+// ★도메인 분리: 위 §4.5 payments·billing_schedules 는 '학원→학생 수강료'.
+//   아래 2종은 'RGuardians→학원 서비스료'(접두 academy_/subscription_)·완전 별개 도메인.
+//   요금제 basic(무료·AI 없음) | pro(20000/월·AI 포함)·차이는 AI 비서 가부. Pro=토스 빌링 정기결제.
+
+Table academy_subscriptions {
+    id binary(16) [pk, note: 'UUID v7 (앱 생성)']
+    academy_id binary(16) [not null, unique, note: 'academies.id(=tenant_id)·학원당 1행']
+    plan varchar(16) [not null, default: 'basic', note: 'CHECK: basic | pro']
+    status varchar(16) [not null, default: 'active', note: 'CHECK: active | trialing | canceled | past_due']
+    toss_billing_key varchar(255) [note: '★민감 — 토스 빌링키(정기결제)·BE 전용·응답 노출 금지']
+    toss_customer_key varchar(255)
+    card_company varchar(40) [note: '카드사(표시용)']
+    card_number_masked varchar(32) [note: '마스킹 카드번호(표시용)']
+    trial_end_at datetime [note: '무료체험 종료 시각']
+    current_period_start datetime
+    current_period_end datetime
+    next_billing_date date [note: '다음 정기결제 청구일(배치 조회 키)']
+    price_amount int [not null, default: 20000, note: '월 구독료(KRW·Pro=20000)']
+    canceled_at datetime
+    created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+    updated_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+    is_deleted tinyint [not null, default: 0, note: '논리삭제(1=삭제)']
+    deleted_at datetime
+    deleted_by binary(16)
+
+    Indexes {
+        status [name: 'idx_academy_subscriptions_status']
+        next_billing_date [name: 'idx_academy_subscriptions_next_billing']
+    }
+
+    Note: 'RGuardians→학원 서비스 구독 상태 — academy_id UNIQUE(학원당 1행). toss_billing_key 민감(BE 전용). 학생 청구(§4.5)와 별개 도메인'
+}
+
+Table subscription_payments {
+    id binary(16) [pk, note: 'UUID v7 (앱 생성)']
+    academy_id binary(16) [not null, note: 'academies.id (논리 참조)']
+    subscription_id binary(16) [not null, note: 'academy_subscriptions.id (논리 참조)']
+    toss_payment_key varchar(255) [note: '토스 paymentKey']
+    toss_order_id varchar(64) [not null, unique, note: '토스 orderId(멱등 키)']
+    amount int [not null, note: '결제 금액(KRW)']
+    status varchar(16) [not null, default: 'pending', note: 'CHECK: pending | done | failed | canceled']
+    billing_type varchar(16) [not null, note: 'CHECK: first | recurring']
+    requested_at datetime
+    approved_at datetime
+    receipt_url varchar(500)
+    failure_code varchar(64)
+    failure_reason varchar(255)
+    raw_response json [note: '토스 응답 원본(감사/디버깅)·json_valid CHECK']
+    created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+    Indexes {
+        academy_id [name: 'idx_subscription_payments_academy']
+        status [name: 'idx_subscription_payments_status']
+    }
+
+    Note: 'RGuardians→학원 구독 결제 이력 — 토스 결제 건별·이력 보존(append-only). toss_order_id UNIQUE 멱등'
+}
+
 // ─── §4.5b AI비서 ────────────────────────────────────────────────────────────
 
 Table ai_assistant_unmet_requests {
@@ -683,6 +742,9 @@ Ref: holidays.tenant_id > academies.id [delete: restrict]
 Ref: attendances.tenant_id > academies.id [delete: restrict]
 Ref: vision_verifications.tenant_id > academies.id [delete: restrict]
 Ref: payments.tenant_id > academies.id [delete: restrict]
+Ref: academy_subscriptions.academy_id > academies.id [delete: restrict]  // DB-38 (논리 참조·FK 미선언)
+Ref: subscription_payments.academy_id > academies.id [delete: restrict]  // DB-38
+Ref: subscription_payments.subscription_id > academy_subscriptions.id [delete: restrict]  // DB-38
 Ref: payment_events.tenant_id > academies.id [delete: restrict]
 Ref: message_templates.tenant_id > academies.id [delete: restrict]
 Ref: settings.tenant_id > academies.id [delete: restrict]
