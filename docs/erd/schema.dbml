@@ -519,6 +519,7 @@ Table academy_subscriptions {
     current_period_end datetime
     next_billing_date date [note: '다음 정기결제 청구일(배치 조회 키)']
     price_amount int [not null, default: 20000, note: '월 구독료(KRW·Pro=20000)']
+    cancel_at_period_end tinyint [not null, default: 0, note: '★기간 말 전환 예약 — 1=current_period_end 시 basic 전환(다운그레이드·환불 없음)']
     canceled_at datetime
     created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
     updated_at datetime [not null, default: `CURRENT_TIMESTAMP`]
@@ -542,13 +543,16 @@ Table subscription_payments {
     toss_order_id varchar(64) [not null, unique, note: '토스 orderId(멱등 키)']
     amount int [not null, note: '결제 금액(KRW)']
     status varchar(16) [not null, default: 'pending', note: 'CHECK: pending | done | failed | canceled']
-    billing_type varchar(16) [not null, note: 'CHECK: first | recurring']
+    billing_type varchar(16) [not null, note: 'CHECK: first | recurring | upgrade']
     requested_at datetime
     approved_at datetime
     receipt_url varchar(500)
     failure_code varchar(64)
     failure_reason varchar(255)
     raw_response json [note: '토스 응답 원본(감사/디버깅)·json_valid CHECK']
+    canceled_amount int [not null, default: 0, note: '누적 취소(환불) 금액 — 부분(<amount·업그레이드 일할)·전액(=amount·7일 이내) 겸용']
+    canceled_at datetime [note: '마지막 취소(환불) 시각']
+    cancel_reason varchar(255) [note: '취소 사유(7일 전액 환불 / 업그레이드 하위 잔여 일할 환불)']
     created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
 
     Indexes {

@@ -17,6 +17,10 @@
 --   - toss_billing_key = ★민감(정기결제 자격증명)·BE 전용·API 응답/FE 노출 절대 금지·NULL 허용.
 --   - next_billing_date = 정기결제 배치 조회 키(인덱스 부여). status 도 인덱스(구독 상태 필터).
 --   - is_deleted/deleted_at/deleted_by = 논리삭제 정책(class_suspensions 3컬럼 패턴)·물리삭제 금지(결제 이력 보존).
+--   - cancel_at_period_end = ★기간 말 전환 예약 플래그(취소/환불 정책 SSOT §D·정책확정 3d84981). Pro→basic 다운그레이드
+--     (첫결제 7일 초과·정기갱신)은 즉시 전환이 아니라 current_period_end 시 basic 전환 — 배치가 이 플래그+
+--     current_period_end 도달 건 조회해 전환. A안(BOOLEAN) 채택: TINYINT(1) 플래그가 컨벤션(is_deleted·
+--     settings.auto_attendance_enabled) 정합·B안(canceled_effective_at DATETIME)은 current_period_end 와 중복이라 미채택.
 --
 -- 영향: 신규 테이블 추가만(additive). 기존 쿼리 무영향(BE-76 라이브 전 미소비·적용 직후 0행).
 --       트리거/SP 없음. 롤백 가능(down = DROP TABLE). 기존 payments·billing_schedules 무접촉.
@@ -35,6 +39,7 @@ CREATE TABLE `academy_subscriptions` (
   `current_period_end` datetime DEFAULT NULL COMMENT '현재 구독 주기 종료',
   `next_billing_date` date DEFAULT NULL COMMENT '다음 정기결제 청구일(배치 조회 키)',
   `price_amount` int NOT NULL DEFAULT '20000' COMMENT '월 구독료(KRW·Pro=20000)',
+  `cancel_at_period_end` tinyint(1) NOT NULL DEFAULT '0' COMMENT '★기간 말 전환 예약 — 1=current_period_end 시 basic 전환(다운그레이드·환불 없음). 배치 조회',
   `canceled_at` datetime DEFAULT NULL COMMENT '해지 시각',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

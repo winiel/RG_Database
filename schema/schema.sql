@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-392689';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-392724';
 
 --
 -- Table structure for table `ability_tracks`
@@ -86,6 +86,7 @@ CREATE TABLE `academy_subscriptions` (
   `current_period_end` datetime DEFAULT NULL COMMENT '현재 구독 주기 종료',
   `next_billing_date` date DEFAULT NULL COMMENT '다음 정기결제 청구일(배치 조회 키)',
   `price_amount` int NOT NULL DEFAULT '20000' COMMENT '월 구독료(KRW·Pro=20000)',
+  `cancel_at_period_end` tinyint(1) NOT NULL DEFAULT '0' COMMENT '★기간 말 전환 예약 — 1=current_period_end 시 basic 전환(다운그레이드·환불 없음). 배치 조회',
   `canceled_at` datetime DEFAULT NULL COMMENT '해지 시각',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -808,6 +809,9 @@ CREATE TABLE `subscription_payments` (
   `failure_code` varchar(64) DEFAULT NULL COMMENT '실패 코드(토스)',
   `failure_reason` varchar(255) DEFAULT NULL COMMENT '실패 사유(토스)',
   `raw_response` json DEFAULT NULL COMMENT '토스 응답 원본(감사/디버깅)',
+  `canceled_amount` int NOT NULL DEFAULT '0' COMMENT '누적 취소(환불) 금액 — 토스 부분취소(cancelAmount). 부분(<amount·업그레이드 일할)·전액(=amount·7일 이내) 겸용',
+  `canceled_at` datetime DEFAULT NULL COMMENT '마지막 취소(환불) 시각',
+  `cancel_reason` varchar(255) DEFAULT NULL COMMENT '취소 사유(예: 첫 결제 7일 이내 전액 환불 / 업그레이드 하위 잔여 일할 환불)',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_subscription_payments_order` (`toss_order_id`),
@@ -815,7 +819,7 @@ CREATE TABLE `subscription_payments` (
   KEY `idx_subscription_payments_status` (`status`),
   CONSTRAINT `chk_subscription_payments_raw` CHECK (((`raw_response` is null) or json_valid(`raw_response`))),
   CONSTRAINT `chk_subscription_payments_status` CHECK ((`status` in (_utf8mb4'pending',_utf8mb4'done',_utf8mb4'failed',_utf8mb4'canceled'))),
-  CONSTRAINT `chk_subscription_payments_type` CHECK ((`billing_type` in (_utf8mb4'first',_utf8mb4'recurring')))
+  CONSTRAINT `chk_subscription_payments_type` CHECK ((`billing_type` in (_utf8mb4'first',_utf8mb4'recurring',_utf8mb4'upgrade')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='RGuardians→학원 서비스 구독 결제 이력 — 토스 결제 건별·이력 보존(append-only). toss_order_id UNIQUE 멱등. 학생 청구(payments)와 별개 도메인';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
