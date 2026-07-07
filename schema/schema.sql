@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-392724';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-416397';
 
 --
 -- Table structure for table `ability_tracks`
@@ -789,6 +789,32 @@ CREATE TABLE `subjects` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `subscription_cards`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `subscription_cards` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `academy_id` binary(16) NOT NULL COMMENT 'academies.id (=tenant_id)·테넌트 스코프 (논리 참조·무FK)',
+  `billing_key` varchar(255) NOT NULL COMMENT '★민감 — 토스 빌링키(카드별 고유·정기결제). BE 전용·응답/FE 노출 금지',
+  `customer_key` varchar(255) DEFAULT NULL COMMENT '토스 customerKey',
+  `card_company` varchar(40) DEFAULT NULL COMMENT '카드사(표시용)',
+  `card_number_masked` varchar(32) DEFAULT NULL COMMENT '마스킹 카드번호(표시용)',
+  `is_default` tinyint(1) NOT NULL DEFAULT '0' COMMENT '기본 결제 카드 — 테넌트당 정확히 1장 =1(유니크성 앱 가드 BE-79)',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '논리삭제(1=삭제·감사 보존)',
+  `deleted_at` datetime DEFAULT NULL,
+  `deleted_by` binary(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_subscription_cards_academy` (`academy_id`),
+  KEY `idx_subscription_cards_academy_default` (`academy_id`,`is_default`),
+  KEY `idx_subscription_cards_billing_key` (`billing_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='RGuardians→학원 구독 결제 카드 다중 저장 — 테넌트당 여러 장(최대 5장 앱 가드 BE-79)·is_default 기본 카드 1장·billing_key 민감(BE 전용)·논리삭제. 학생 청구(payments)와 별개 도메인';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `subscription_payments`
 --
 
@@ -992,5 +1018,7 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260704081025'),
   ('20260704140416'),
   ('20260706072214'),
-  ('20260706072215');
+  ('20260706072215'),
+  ('20260707113912'),
+  ('20260707113913');
 UNLOCK TABLES;
