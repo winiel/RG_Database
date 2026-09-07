@@ -56,7 +56,7 @@ RG_Database/
 
 ```bash
 # 1회 준비
-cp .env.aws-dev.example .env.aws-dev    # 실제 값으로 채움 (gitignored)
+cp .env.production.example .env.production    # 실제 값으로 채움 (gitignored)
 brew install mysql-client@8.4           # MySQL 9.x client 호환 이슈 회피
 export PATH="/usr/local/opt/mysql-client@8.4/bin:$PATH"
 
