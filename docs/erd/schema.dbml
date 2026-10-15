@@ -563,6 +563,31 @@ Table subscription_payments {
     Note: 'RGuardians→학원 구독 결제 이력 — 토스 결제 건별·이력 보존(append-only). toss_order_id UNIQUE 멱등'
 }
 
+Table pg_test_payments {
+    id binary(16) [pk, note: 'UUID v7 (앱 생성)']
+    academy_id binary(16) [not null, note: 'academies.id (논리 참조·테넌트 격리)']
+    user_id binary(16) [not null, note: 'user_accounts.id (논리 참조·결제 사용자)']
+    order_id varchar(64) [not null, unique, note: '토스 orderId(서버 생성·멱등 키)']
+    order_name varchar(100) [not null, note: '상품명(예: PG 결제 테스트 상품)']
+    amount int [not null, note: '결제 금액(KRW·서버 고정값)·CHECK > 0']
+    status varchar(16) [not null, default: 'READY', note: 'CHECK: READY | DONE | FAILED']
+    payment_key varchar(255) [note: '토스 paymentKey']
+    method varchar(32) [note: '결제수단(예: 카드)']
+    approved_at datetime
+    failure_code varchar(64) [note: '실패 코드(토스 원문)']
+    failure_message varchar(500) [note: '실패 메시지(토스 원문)']
+    raw_response json [note: '토스 응답 원본(감사/디버깅)·json_valid CHECK']
+    created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+    updated_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+    Indexes {
+        academy_id [name: 'idx_pg_test_payments_academy']
+        status [name: 'idx_pg_test_payments_status']
+    }
+
+    Note: 'PG 단건 테스트 결제 기록(test3 전용·라이브 토스 결제위젯 검증·DB-53) — order_id UNIQUE 멱등. 구독·학생청구와 별개 도메인'
+}
+
 // ─── §4.5b AI비서 ────────────────────────────────────────────────────────────
 
 Table ai_assistant_unmet_requests {

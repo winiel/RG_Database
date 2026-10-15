@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-416397';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-575243';
 
 --
 -- Table structure for table `ability_tracks`
@@ -548,6 +548,38 @@ CREATE TABLE `persons` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `pg_test_payments`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pg_test_payments` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `academy_id` binary(16) NOT NULL COMMENT 'academies.id (논리 참조·테넌트 격리)',
+  `user_id` binary(16) NOT NULL COMMENT 'user_accounts.id (논리 참조·결제 사용자)',
+  `order_id` varchar(64) NOT NULL COMMENT '토스 orderId(서버 생성·멱등 키)',
+  `order_name` varchar(100) NOT NULL COMMENT '상품명(예: PG 결제 테스트 상품)',
+  `amount` int NOT NULL COMMENT '결제 금액(KRW·서버 고정값)',
+  `status` varchar(16) NOT NULL DEFAULT 'READY' COMMENT 'READY | DONE | FAILED',
+  `payment_key` varchar(255) DEFAULT NULL COMMENT '토스 paymentKey(confirm 요청 시)',
+  `method` varchar(32) DEFAULT NULL COMMENT '결제수단(토스 method·예: 카드)',
+  `approved_at` datetime DEFAULT NULL COMMENT '승인 시각',
+  `failure_code` varchar(64) DEFAULT NULL COMMENT '실패 코드(토스 원문)',
+  `failure_message` varchar(500) DEFAULT NULL COMMENT '실패 메시지(토스 원문)',
+  `raw_response` json DEFAULT NULL COMMENT '토스 응답 원본(감사/디버깅)',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_pg_test_payments_order` (`order_id`),
+  KEY `idx_pg_test_payments_academy` (`academy_id`),
+  KEY `idx_pg_test_payments_status` (`status`),
+  CONSTRAINT `chk_pg_test_payments_amount` CHECK ((`amount` > 0)),
+  CONSTRAINT `chk_pg_test_payments_raw` CHECK (((`raw_response` is null) or json_valid(`raw_response`))),
+  CONSTRAINT `chk_pg_test_payments_status` CHECK ((`status` in (_utf8mb4'READY',_utf8mb4'DONE',_utf8mb4'FAILED')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='PG 단건 테스트 결제 기록(test3 전용·라이브 토스 결제위젯 검증) — order_id UNIQUE 멱등. 구독·학생청구와 별개 도메인';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `refresh_tokens`
 --
 
@@ -1020,5 +1052,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260706072214'),
   ('20260706072215'),
   ('20260707113912'),
-  ('20260707113913');
+  ('20260707113913'),
+  ('20261015105000');
 UNLOCK TABLES;
