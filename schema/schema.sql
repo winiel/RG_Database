@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-598020';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-606008';
 
 --
 -- Table structure for table `ability_tracks`
@@ -196,8 +196,8 @@ CREATE TABLE `ai_passes` (
   `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
   `academy_id` binary(16) NOT NULL COMMENT 'academies.id (논리 참조·테넌트 격리)',
   `user_id` binary(16) NOT NULL COMMENT 'user_accounts.id (논리 참조·구매자)',
-  `product_code` varchar(32) NOT NULL COMMENT 'ai_pass_7 | ai_pass_15 | ai_pass_30',
-  `days` int NOT NULL COMMENT '이용 일수(7 | 15 | 30)',
+  `product_code` varchar(32) NOT NULL COMMENT 'ai_pass_7 | ai_pass_15 | ai_pass_30 | ai_pass_365',
+  `days` int NOT NULL COMMENT '이용 일수(7 | 15 | 30 | 365)',
   `credits_spent` int NOT NULL COMMENT '차감 크레딧(70 | 120 | 220)',
   `purchased_at` datetime NOT NULL COMMENT '구매 시각(취소 7일 판정 기준)',
   `starts_at` datetime NOT NULL COMMENT '개시 시각(기존 이용권 종료에 이어붙임)',
@@ -211,10 +211,10 @@ CREATE TABLE `ai_passes` (
   PRIMARY KEY (`id`),
   KEY `idx_ai_passes_academy_status_ends` (`academy_id`,`status`,`ends_at`),
   CONSTRAINT `chk_ai_passes_credits` CHECK ((`credits_spent` > 0)),
-  CONSTRAINT `chk_ai_passes_days` CHECK ((`days` in (7,15,30))),
+  CONSTRAINT `chk_ai_passes_days` CHECK ((`days` in (7,15,30,365))),
   CONSTRAINT `chk_ai_passes_paused` CHECK (((`paused_remaining_seconds` is null) or (`paused_remaining_seconds` >= 0))),
   CONSTRAINT `chk_ai_passes_period` CHECK ((`ends_at` > `starts_at`)),
-  CONSTRAINT `chk_ai_passes_product` CHECK ((`product_code` in (_utf8mb4'ai_pass_7',_utf8mb4'ai_pass_15',_utf8mb4'ai_pass_30'))),
+  CONSTRAINT `chk_ai_passes_product` CHECK ((`product_code` in (_utf8mb4'ai_pass_7',_utf8mb4'ai_pass_15',_utf8mb4'ai_pass_30',_utf8mb4'ai_pass_365'))),
   CONSTRAINT `chk_ai_passes_status` CHECK ((`status` in (_utf8mb4'SCHEDULED',_utf8mb4'ACTIVE',_utf8mb4'PAUSED',_utf8mb4'ENDED',_utf8mb4'CANCELED')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='AI 비서 이용권(크레딧 구매) — plan 무변경·AI 비서 권한만. Pro 중 정지/재개';
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -376,7 +376,7 @@ CREATE TABLE `credit_charge_orders` (
   `academy_id` binary(16) NOT NULL COMMENT 'academies.id (논리 참조·테넌트 격리)',
   `user_id` binary(16) NOT NULL COMMENT 'user_accounts.id (논리 참조·결제 사용자)',
   `order_id` varchar(64) NOT NULL COMMENT '토스 orderId(서버 생성·멱등 confirm 키)',
-  `package_code` varchar(32) NOT NULL COMMENT 'credit_100 | credit_300 | credit_500',
+  `package_code` varchar(32) NOT NULL COMMENT 'v2: credit_150 | credit_300 | credit_3300 (구 credit_100 | credit_500 유지)',
   `amount` int NOT NULL COMMENT '결제 금액(KRW·서버 고정값) = credits × 100',
   `credits` int NOT NULL COMMENT '충전 크레딧',
   `status` varchar(20) NOT NULL DEFAULT 'READY' COMMENT 'READY | DONE | FAILED | CANCELED | PARTIAL_CANCELED',
@@ -396,7 +396,7 @@ CREATE TABLE `credit_charge_orders` (
   CONSTRAINT `chk_credit_charge_orders_amount` CHECK ((`amount` = (`credits` * 100))),
   CONSTRAINT `chk_credit_charge_orders_canceled` CHECK (((`canceled_amount` >= 0) and (`canceled_amount` <= `amount`))),
   CONSTRAINT `chk_credit_charge_orders_credits` CHECK ((`credits` > 0)),
-  CONSTRAINT `chk_credit_charge_orders_package` CHECK ((`package_code` in (_utf8mb4'credit_100',_utf8mb4'credit_300',_utf8mb4'credit_500'))),
+  CONSTRAINT `chk_credit_charge_orders_package` CHECK ((`package_code` in (_utf8mb4'credit_100',_utf8mb4'credit_300',_utf8mb4'credit_500',_utf8mb4'credit_150',_utf8mb4'credit_3300'))),
   CONSTRAINT `chk_credit_charge_orders_raw` CHECK (((`raw_response` is null) or json_valid(`raw_response`))),
   CONSTRAINT `chk_credit_charge_orders_status` CHECK ((`status` in (_utf8mb4'READY',_utf8mb4'DONE',_utf8mb4'FAILED',_utf8mb4'CANCELED',_utf8mb4'PARTIAL_CANCELED')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='크레딧 충전 결제 주문(토스 단건결제) — order_id UNIQUE 멱등. 1크레딧=100원. 구독·학생청구·PG 테스트와 별개 도메인';
@@ -442,7 +442,7 @@ CREATE TABLE `credit_lots` (
   `credits_total` int NOT NULL COMMENT '충전 크레딧',
   `credits_remaining` int NOT NULL COMMENT '잔여 크레딧(0 ≤ 잔여 ≤ 충전량)',
   `charged_at` datetime NOT NULL COMMENT '충전 시각(환불 7일 판정 기준)',
-  `expires_at` datetime NOT NULL COMMENT '만료 시각(충전 + 5년)',
+  `expires_at` datetime NOT NULL COMMENT '만료 시각(충전 + 1년·BE-94)',
   `status` varchar(16) NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE | EXHAUSTED | REFUNDED | EXPIRED',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -1233,5 +1233,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260707113912'),
   ('20260707113913'),
   ('20261015105000'),
-  ('20261019150906');
+  ('20261019150906'),
+  ('20261019185140');
 UNLOCK TABLES;
