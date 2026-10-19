@@ -588,6 +588,141 @@ Table pg_test_payments {
     Note: 'PG 단건 테스트 결제 기록(test3 전용·라이브 토스 결제위젯 검증·DB-53) — order_id UNIQUE 멱등. 구독·학생청구와 별개 도메인'
 }
 
+// ─── 크레딧 충전 + AI 비서 이용권 (DB-54) ──────────────────────────────────────
+
+Table credit_charge_orders {
+    id binary(16) [pk, note: 'UUID v7 (앱 생성)']
+    academy_id binary(16) [not null, note: 'academies.id (논리 참조·테넌트 격리)']
+    user_id binary(16) [not null, note: 'user_accounts.id (논리 참조·결제 사용자)']
+    order_id varchar(64) [not null, unique, note: '토스 orderId(서버 생성·멱등 confirm 키)']
+    package_code varchar(32) [not null, note: 'CHECK: credit_100 | credit_300 | credit_500']
+    amount int [not null, note: '결제 금액(KRW)·CHECK amount = credits × 100']
+    credits int [not null, note: '충전 크레딧·CHECK > 0']
+    status varchar(20) [not null, default: 'READY', note: 'CHECK: READY | DONE | FAILED | CANCELED | PARTIAL_CANCELED']
+    payment_key varchar(255) [note: '토스 paymentKey']
+    method varchar(32) [note: '결제수단(토스 method)']
+    approved_at datetime
+    failure_code varchar(64) [note: '실패 코드(토스 원문)']
+    failure_message varchar(500) [note: '실패 메시지(토스 원문)']
+    raw_response json [note: '토스 응답 원본·json_valid CHECK']
+    canceled_amount int [not null, default: 0, note: '누적 (부분)취소 금액·CHECK 0 ≤ x ≤ amount']
+    created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+    updated_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+    Indexes {
+        (academy_id, created_at) [name: 'idx_credit_charge_orders_academy_created']
+        status [name: 'idx_credit_charge_orders_status']
+    }
+
+    Note: '크레딧 충전 결제 주문(토스 단건결제·DB-54) — order_id UNIQUE 멱등. 1크레딧=100원'
+}
+
+Table credit_lots {
+    id binary(16) [pk, note: 'UUID v7 (앱 생성)']
+    academy_id binary(16) [not null, note: 'academies.id (논리 참조·테넌트 격리)']
+    charge_order_id binary(16) [unique, note: 'credit_charge_orders.id (논리 참조·주문당 lot 1개)·NULL = 결제 없는 lot(운영 보상)']
+    credits_total int [not null, note: '충전 크레딧·CHECK > 0']
+    credits_remaining int [not null, note: '잔여 크레딧·CHECK 0 ≤ x ≤ credits_total']
+    charged_at datetime [not null, note: '충전 시각(환불 7일 판정)']
+    expires_at datetime [not null, note: '만료 시각(충전 + 5년)·CHECK > charged_at']
+    status varchar(16) [not null, default: 'ACTIVE', note: 'CHECK: ACTIVE | EXHAUSTED | REFUNDED | EXPIRED']
+    created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+    updated_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+    Indexes {
+        (academy_id, expires_at) [name: 'idx_credit_lots_academy_expires']
+        (status, expires_at) [name: 'idx_credit_lots_status_expires']
+    }
+
+    Note: '크레딧 충전 건(잔액 단위·DB-54) — FIFO 차감·lot 단위 환불·만료 소멸'
+}
+
+Table credit_ledger {
+    id binary(16) [pk, note: 'UUID v7 (앱 생성)']
+    academy_id binary(16) [not null, note: 'academies.id (논리 참조·테넌트 격리)']
+    lot_id binary(16) [not null, note: 'credit_lots.id (논리 참조)']
+    delta int [not null, note: '증감 크레딧(±)·CHECK ≠ 0']
+    reason varchar(24) [not null, note: 'CHECK: CHARGE | PASS_PURCHASE | PASS_CANCEL_RESTORE | REFUND | EXPIRE | COMPENSATION']
+    ref_type varchar(32) [note: '근거 행 종류']
+    ref_id binary(16) [note: '근거 행 id']
+    balance_after int [not null, note: '반영 후 학원 잔액·CHECK ≥ 0']
+    actor_user_id binary(16) [note: 'user_accounts.id (배치=NULL)']
+    created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+    Indexes {
+        (academy_id, created_at) [name: 'idx_credit_ledger_academy_created']
+        lot_id [name: 'idx_credit_ledger_lot']
+        (ref_type, ref_id) [name: 'idx_credit_ledger_ref']
+    }
+
+    Note: '크레딧 증감 원장(append-only·DB-54) — lot 잔액 합 = 원장 합'
+}
+
+Table credit_refunds {
+    id binary(16) [pk, note: 'UUID v7 (앱 생성)']
+    academy_id binary(16) [not null, note: 'academies.id (논리 참조·테넌트 격리)']
+    lot_id binary(16) [not null, note: 'credit_lots.id (논리 참조)']
+    credits int [not null, note: '환불 대상 크레딧·CHECK > 0']
+    gross_amount int [not null, note: 'CHECK = credits × 100']
+    fee_amount int [not null, note: '공제액·CHECK ≥ 0']
+    refund_amount int [not null, note: 'CHECK = gross − fee·> 0']
+    toss_cancel_tx_key varchar(255) [note: '토스 부분취소 transactionKey']
+    status varchar(16) [not null, default: 'REQUESTED', note: 'CHECK: REQUESTED | DONE | FAILED']
+    failure_code varchar(64)
+    failure_message varchar(500)
+    raw_response json [note: 'json_valid CHECK']
+    requested_by binary(16) [not null, note: 'user_accounts.id (요청 사용자)']
+    active_lot_token binary(16) [unique, note: 'GENERATED VIRTUAL — if(status in (REQUESTED,DONE), lot_id, NULL)·lot 당 진행/완료 환불 1건']
+    created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+    updated_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+    Indexes {
+        (academy_id, created_at) [name: 'idx_credit_refunds_academy_created']
+        lot_id [name: 'idx_credit_refunds_lot']
+    }
+
+    Note: '크레딧 환불 실행 기록(lot 단위·원 결제 부분취소·DB-54)'
+}
+
+Table ai_passes {
+    id binary(16) [pk, note: 'UUID v7 (앱 생성)']
+    academy_id binary(16) [not null, note: 'academies.id (논리 참조·테넌트 격리)']
+    user_id binary(16) [not null, note: 'user_accounts.id (논리 참조·구매자)']
+    product_code varchar(32) [not null, note: 'CHECK: ai_pass_7 | ai_pass_15 | ai_pass_30']
+    days int [not null, note: 'CHECK: 7 | 15 | 30']
+    credits_spent int [not null, note: '차감 크레딧·CHECK > 0']
+    purchased_at datetime [not null]
+    starts_at datetime [not null]
+    ends_at datetime [not null, note: 'CHECK > starts_at']
+    status varchar(16) [not null, default: 'ACTIVE', note: 'CHECK: SCHEDULED | ACTIVE | PAUSED | ENDED | CANCELED']
+    paused_remaining_seconds int [note: 'Pro 정지 시 남은 초·CHECK ≥ 0']
+    paused_at datetime
+    canceled_at datetime
+    created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+    updated_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+    Indexes {
+        (academy_id, status, ends_at) [name: 'idx_ai_passes_academy_status_ends']
+    }
+
+    Note: 'AI 비서 이용권(크레딧 구매·DB-54) — plan 무변경·AI 비서 권한만. Pro 중 정지/재개'
+}
+
+Table ai_pass_credit_allocations {
+    id binary(16) [pk, note: 'UUID v7 (앱 생성)']
+    pass_id binary(16) [not null, note: 'ai_passes.id (논리 참조)']
+    lot_id binary(16) [not null, note: 'credit_lots.id (논리 참조)']
+    credits int [not null, note: 'CHECK > 0']
+    created_at datetime [not null, default: `CURRENT_TIMESTAMP`]
+
+    Indexes {
+        (pass_id, lot_id) [unique, name: 'uq_ai_pass_credit_allocations_pass_lot']
+        lot_id [name: 'idx_ai_pass_credit_allocations_lot']
+    }
+
+    Note: '이용권 ↔ lot 차감 내역(append-only·DB-54) — 이용권 취소 시 원 lot 복원 근거'
+}
+
 // ─── §4.5b AI비서 ────────────────────────────────────────────────────────────
 
 Table ai_assistant_unmet_requests {

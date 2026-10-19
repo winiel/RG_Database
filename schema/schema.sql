@@ -15,7 +15,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-575243';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '5626957a-4c39-11f1-a0d4-78f153c9f678:1-598020';
 
 --
 -- Table structure for table `ability_tracks`
@@ -168,6 +168,58 @@ CREATE TABLE `ai_assistant_unmet_requests` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `ai_pass_credit_allocations`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ai_pass_credit_allocations` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `pass_id` binary(16) NOT NULL COMMENT 'ai_passes.id (논리 참조)',
+  `lot_id` binary(16) NOT NULL COMMENT 'credit_lots.id (논리 참조·차감된 lot)',
+  `credits` int NOT NULL COMMENT '해당 lot 에서 차감한 크레딧',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_ai_pass_credit_allocations_pass_lot` (`pass_id`,`lot_id`),
+  KEY `idx_ai_pass_credit_allocations_lot` (`lot_id`),
+  CONSTRAINT `chk_ai_pass_credit_allocations_credits` CHECK ((`credits` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='이용권 ↔ 충전 건(lot) 차감 내역(append-only) — 이용권 취소 시 원 lot 복원 근거';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `ai_passes`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ai_passes` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `academy_id` binary(16) NOT NULL COMMENT 'academies.id (논리 참조·테넌트 격리)',
+  `user_id` binary(16) NOT NULL COMMENT 'user_accounts.id (논리 참조·구매자)',
+  `product_code` varchar(32) NOT NULL COMMENT 'ai_pass_7 | ai_pass_15 | ai_pass_30',
+  `days` int NOT NULL COMMENT '이용 일수(7 | 15 | 30)',
+  `credits_spent` int NOT NULL COMMENT '차감 크레딧(70 | 120 | 220)',
+  `purchased_at` datetime NOT NULL COMMENT '구매 시각(취소 7일 판정 기준)',
+  `starts_at` datetime NOT NULL COMMENT '개시 시각(기존 이용권 종료에 이어붙임)',
+  `ends_at` datetime NOT NULL COMMENT '종료 시각',
+  `status` varchar(16) NOT NULL DEFAULT 'ACTIVE' COMMENT 'SCHEDULED | ACTIVE | PAUSED | ENDED | CANCELED',
+  `paused_remaining_seconds` int DEFAULT NULL COMMENT 'Pro 정지 시 남은 초(P-9)',
+  `paused_at` datetime DEFAULT NULL COMMENT 'Pro 정지 시각(P-9)',
+  `canceled_at` datetime DEFAULT NULL COMMENT '취소 시각(P-8)',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ai_passes_academy_status_ends` (`academy_id`,`status`,`ends_at`),
+  CONSTRAINT `chk_ai_passes_credits` CHECK ((`credits_spent` > 0)),
+  CONSTRAINT `chk_ai_passes_days` CHECK ((`days` in (7,15,30))),
+  CONSTRAINT `chk_ai_passes_paused` CHECK (((`paused_remaining_seconds` is null) or (`paused_remaining_seconds` >= 0))),
+  CONSTRAINT `chk_ai_passes_period` CHECK ((`ends_at` > `starts_at`)),
+  CONSTRAINT `chk_ai_passes_product` CHECK ((`product_code` in (_utf8mb4'ai_pass_7',_utf8mb4'ai_pass_15',_utf8mb4'ai_pass_30'))),
+  CONSTRAINT `chk_ai_passes_status` CHECK ((`status` in (_utf8mb4'SCHEDULED',_utf8mb4'ACTIVE',_utf8mb4'PAUSED',_utf8mb4'ENDED',_utf8mb4'CANCELED')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='AI 비서 이용권(크레딧 구매) — plan 무변경·AI 비서 권한만. Pro 중 정지/재개';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `attendances`
 --
 
@@ -311,6 +363,133 @@ CREATE TABLE `classes` (
   CONSTRAINT `chk_classes_days_of_week_not_empty` CHECK (((`days_of_week` is null) or (json_length(`days_of_week`) >= 1))),
   CONSTRAINT `chk_classes_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'ended',_utf8mb4'archived')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `credit_charge_orders`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `credit_charge_orders` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `academy_id` binary(16) NOT NULL COMMENT 'academies.id (논리 참조·테넌트 격리)',
+  `user_id` binary(16) NOT NULL COMMENT 'user_accounts.id (논리 참조·결제 사용자)',
+  `order_id` varchar(64) NOT NULL COMMENT '토스 orderId(서버 생성·멱등 confirm 키)',
+  `package_code` varchar(32) NOT NULL COMMENT 'credit_100 | credit_300 | credit_500',
+  `amount` int NOT NULL COMMENT '결제 금액(KRW·서버 고정값) = credits × 100',
+  `credits` int NOT NULL COMMENT '충전 크레딧',
+  `status` varchar(20) NOT NULL DEFAULT 'READY' COMMENT 'READY | DONE | FAILED | CANCELED | PARTIAL_CANCELED',
+  `payment_key` varchar(255) DEFAULT NULL COMMENT '토스 paymentKey(confirm·부분취소 대상)',
+  `method` varchar(32) DEFAULT NULL COMMENT '결제수단(토스 method)',
+  `approved_at` datetime DEFAULT NULL COMMENT '승인 시각',
+  `failure_code` varchar(64) DEFAULT NULL COMMENT '실패 코드(토스 원문)',
+  `failure_message` varchar(500) DEFAULT NULL COMMENT '실패 메시지(토스 원문)',
+  `raw_response` json DEFAULT NULL COMMENT '토스 응답 원본(감사/디버깅)',
+  `canceled_amount` int NOT NULL DEFAULT '0' COMMENT '누적 (부분)취소 금액(KRW)',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_credit_charge_orders_order` (`order_id`),
+  KEY `idx_credit_charge_orders_academy_created` (`academy_id`,`created_at`),
+  KEY `idx_credit_charge_orders_status` (`status`),
+  CONSTRAINT `chk_credit_charge_orders_amount` CHECK ((`amount` = (`credits` * 100))),
+  CONSTRAINT `chk_credit_charge_orders_canceled` CHECK (((`canceled_amount` >= 0) and (`canceled_amount` <= `amount`))),
+  CONSTRAINT `chk_credit_charge_orders_credits` CHECK ((`credits` > 0)),
+  CONSTRAINT `chk_credit_charge_orders_package` CHECK ((`package_code` in (_utf8mb4'credit_100',_utf8mb4'credit_300',_utf8mb4'credit_500'))),
+  CONSTRAINT `chk_credit_charge_orders_raw` CHECK (((`raw_response` is null) or json_valid(`raw_response`))),
+  CONSTRAINT `chk_credit_charge_orders_status` CHECK ((`status` in (_utf8mb4'READY',_utf8mb4'DONE',_utf8mb4'FAILED',_utf8mb4'CANCELED',_utf8mb4'PARTIAL_CANCELED')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='크레딧 충전 결제 주문(토스 단건결제) — order_id UNIQUE 멱등. 1크레딧=100원. 구독·학생청구·PG 테스트와 별개 도메인';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `credit_ledger`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `credit_ledger` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `academy_id` binary(16) NOT NULL COMMENT 'academies.id (논리 참조·테넌트 격리)',
+  `lot_id` binary(16) NOT NULL COMMENT 'credit_lots.id (논리 참조·증감 대상 lot)',
+  `delta` int NOT NULL COMMENT '증감 크레딧(±·0 불가)',
+  `reason` varchar(24) NOT NULL COMMENT 'CHARGE | PASS_PURCHASE | PASS_CANCEL_RESTORE | REFUND | EXPIRE | COMPENSATION',
+  `ref_type` varchar(32) DEFAULT NULL COMMENT '근거 행 종류(charge_order | ai_pass | refund 등)',
+  `ref_id` binary(16) DEFAULT NULL COMMENT '근거 행 id',
+  `balance_after` int NOT NULL COMMENT '반영 후 학원 전체 잔액',
+  `actor_user_id` binary(16) DEFAULT NULL COMMENT 'user_accounts.id (수행자·배치=NULL)',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_credit_ledger_academy_created` (`academy_id`,`created_at`),
+  KEY `idx_credit_ledger_lot` (`lot_id`),
+  KEY `idx_credit_ledger_ref` (`ref_type`,`ref_id`),
+  CONSTRAINT `chk_credit_ledger_balance` CHECK ((`balance_after` >= 0)),
+  CONSTRAINT `chk_credit_ledger_delta` CHECK ((`delta` <> 0)),
+  CONSTRAINT `chk_credit_ledger_reason` CHECK ((`reason` in (_utf8mb4'CHARGE',_utf8mb4'PASS_PURCHASE',_utf8mb4'PASS_CANCEL_RESTORE',_utf8mb4'REFUND',_utf8mb4'EXPIRE',_utf8mb4'COMPENSATION')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='크레딧 증감 원장(append-only·UPDATE/DELETE 금지) — lot 잔액 합 = 원장 합';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `credit_lots`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `credit_lots` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `academy_id` binary(16) NOT NULL COMMENT 'academies.id (논리 참조·테넌트 격리)',
+  `charge_order_id` binary(16) DEFAULT NULL COMMENT 'credit_charge_orders.id (논리 참조·주문당 lot 1개). NULL = 결제 없는 lot(운영 보상 등)',
+  `credits_total` int NOT NULL COMMENT '충전 크레딧',
+  `credits_remaining` int NOT NULL COMMENT '잔여 크레딧(0 ≤ 잔여 ≤ 충전량)',
+  `charged_at` datetime NOT NULL COMMENT '충전 시각(환불 7일 판정 기준)',
+  `expires_at` datetime NOT NULL COMMENT '만료 시각(충전 + 5년)',
+  `status` varchar(16) NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE | EXHAUSTED | REFUNDED | EXPIRED',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_credit_lots_charge_order` (`charge_order_id`),
+  KEY `idx_credit_lots_academy_expires` (`academy_id`,`expires_at`),
+  KEY `idx_credit_lots_status_expires` (`status`,`expires_at`),
+  CONSTRAINT `chk_credit_lots_expires` CHECK ((`expires_at` > `charged_at`)),
+  CONSTRAINT `chk_credit_lots_remaining` CHECK (((`credits_remaining` >= 0) and (`credits_remaining` <= `credits_total`))),
+  CONSTRAINT `chk_credit_lots_status` CHECK ((`status` in (_utf8mb4'ACTIVE',_utf8mb4'EXHAUSTED',_utf8mb4'REFUNDED',_utf8mb4'EXPIRED'))),
+  CONSTRAINT `chk_credit_lots_total` CHECK ((`credits_total` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='크레딧 충전 건(잔액 단위) — 유효기간 먼저 끝나는 lot 부터 차감(FIFO)·lot 단위 환불·만료 소멸';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `credit_refunds`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `credit_refunds` (
+  `id` binary(16) NOT NULL COMMENT 'UUID v7 (앱 생성)',
+  `academy_id` binary(16) NOT NULL COMMENT 'academies.id (논리 참조·테넌트 격리)',
+  `lot_id` binary(16) NOT NULL COMMENT 'credit_lots.id (논리 참조·환불 대상 lot)',
+  `credits` int NOT NULL COMMENT '환불 대상 크레딧(미사용분)',
+  `gross_amount` int NOT NULL COMMENT '대상 금액(KRW) = credits × 100',
+  `fee_amount` int NOT NULL COMMENT '공제액(KRW·7일 이내 0·경과 10% 최소 1,000)',
+  `refund_amount` int NOT NULL COMMENT '환불액(KRW) = gross − fee',
+  `toss_cancel_tx_key` varchar(255) DEFAULT NULL COMMENT '토스 부분취소 transactionKey',
+  `status` varchar(16) NOT NULL DEFAULT 'REQUESTED' COMMENT 'REQUESTED | DONE | FAILED',
+  `failure_code` varchar(64) DEFAULT NULL COMMENT '실패 코드(토스 원문)',
+  `failure_message` varchar(500) DEFAULT NULL COMMENT '실패 메시지(토스 원문)',
+  `raw_response` json DEFAULT NULL COMMENT '토스 응답 원본(감사/디버깅)',
+  `requested_by` binary(16) NOT NULL COMMENT 'user_accounts.id (요청 사용자)',
+  `active_lot_token` binary(16) GENERATED ALWAYS AS (if((`status` in (_utf8mb4'REQUESTED',_utf8mb4'DONE')),`lot_id`,NULL)) VIRTUAL COMMENT 'lot 당 진행/완료 환불 1건 강제(FAILED=NULL 면제)',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_credit_refunds_active_lot` (`active_lot_token`),
+  KEY `idx_credit_refunds_academy_created` (`academy_id`,`created_at`),
+  KEY `idx_credit_refunds_lot` (`lot_id`),
+  CONSTRAINT `chk_credit_refunds_amounts` CHECK (((`fee_amount` >= 0) and (`refund_amount` > 0) and (`refund_amount` = (`gross_amount` - `fee_amount`)))),
+  CONSTRAINT `chk_credit_refunds_credits` CHECK ((`credits` > 0)),
+  CONSTRAINT `chk_credit_refunds_gross` CHECK ((`gross_amount` = (`credits` * 100))),
+  CONSTRAINT `chk_credit_refunds_raw` CHECK (((`raw_response` is null) or json_valid(`raw_response`))),
+  CONSTRAINT `chk_credit_refunds_status` CHECK ((`status` in (_utf8mb4'REQUESTED',_utf8mb4'DONE',_utf8mb4'FAILED')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='크레딧 환불 실행 기록(lot 단위·원 결제 부분취소) — lot 당 REQUESTED/DONE 1건(중복 환불 방지)';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1053,5 +1232,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260706072215'),
   ('20260707113912'),
   ('20260707113913'),
-  ('20261015105000');
+  ('20261015105000'),
+  ('20261019150906');
 UNLOCK TABLES;
