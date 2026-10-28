@@ -376,7 +376,7 @@ CREATE TABLE `credit_charge_orders` (
   `academy_id` binary(16) NOT NULL COMMENT 'academies.id (논리 참조·테넌트 격리)',
   `user_id` binary(16) NOT NULL COMMENT 'user_accounts.id (논리 참조·결제 사용자)',
   `order_id` varchar(64) NOT NULL COMMENT '토스 orderId(서버 생성·멱등 confirm 키)',
-  `package_code` varchar(32) NOT NULL COMMENT 'v2: credit_150 | credit_300 | credit_3300 (구 credit_100 | credit_500 유지)',
+  `package_code` varchar(32) NOT NULL COMMENT 'v3: credit_150 | credit_300 | credit_1000 판매 (credit_3300 | credit_100 | credit_500 이력)',
   `amount` int NOT NULL COMMENT '결제 금액(KRW·서버 고정값) = credits × 100',
   `credits` int NOT NULL COMMENT '충전 크레딧',
   `status` varchar(20) NOT NULL DEFAULT 'READY' COMMENT 'READY | DONE | FAILED | CANCELED | PARTIAL_CANCELED',
@@ -396,7 +396,7 @@ CREATE TABLE `credit_charge_orders` (
   CONSTRAINT `chk_credit_charge_orders_amount` CHECK ((`amount` = (`credits` * 100))),
   CONSTRAINT `chk_credit_charge_orders_canceled` CHECK (((`canceled_amount` >= 0) and (`canceled_amount` <= `amount`))),
   CONSTRAINT `chk_credit_charge_orders_credits` CHECK ((`credits` > 0)),
-  CONSTRAINT `chk_credit_charge_orders_package` CHECK ((`package_code` in (_utf8mb4'credit_100',_utf8mb4'credit_300',_utf8mb4'credit_500',_utf8mb4'credit_150',_utf8mb4'credit_3300'))),
+  CONSTRAINT `chk_credit_charge_orders_package` CHECK ((`package_code` in (_utf8mb4'credit_100',_utf8mb4'credit_300',_utf8mb4'credit_500',_utf8mb4'credit_150',_utf8mb4'credit_3300',_utf8mb4'credit_1000'))),
   CONSTRAINT `chk_credit_charge_orders_raw` CHECK (((`raw_response` is null) or json_valid(`raw_response`))),
   CONSTRAINT `chk_credit_charge_orders_status` CHECK ((`status` in (_utf8mb4'READY',_utf8mb4'DONE',_utf8mb4'FAILED',_utf8mb4'CANCELED',_utf8mb4'PARTIAL_CANCELED')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='크레딧 충전 결제 주문(토스 단건결제) — order_id UNIQUE 멱등. 1크레딧=100원. 구독·학생청구·PG 테스트와 별개 도메인';
@@ -1234,5 +1234,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20260707113913'),
   ('20261015105000'),
   ('20261019150906'),
-  ('20261019185140');
+  ('20261019185140'),
+  ('20261028063300');
 UNLOCK TABLES;
