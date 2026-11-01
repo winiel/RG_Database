@@ -387,6 +387,9 @@ CREATE TABLE `credit_charge_orders` (
   `failure_message` varchar(500) DEFAULT NULL COMMENT '실패 메시지(토스 원문)',
   `raw_response` json DEFAULT NULL COMMENT '토스 응답 원본(감사/디버깅)',
   `canceled_amount` int NOT NULL DEFAULT '0' COMMENT '누적 (부분)취소 금액(KRW)',
+  `currency` varchar(3) NOT NULL DEFAULT 'KRW' COMMENT '결제 통화 KRW | USD. amount 는 통화와 무관하게 KRW 기준값',
+  `paid_amount` decimal(10,2) DEFAULT NULL COMMENT '실제 결제 외화 금액(서버 고정가). KRW 주문은 NULL',
+  `paid_canceled_amount` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT '누적 (부분)취소 외화 금액. KRW 주문은 0',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -396,7 +399,9 @@ CREATE TABLE `credit_charge_orders` (
   CONSTRAINT `chk_credit_charge_orders_amount` CHECK ((`amount` = (`credits` * 100))),
   CONSTRAINT `chk_credit_charge_orders_canceled` CHECK (((`canceled_amount` >= 0) and (`canceled_amount` <= `amount`))),
   CONSTRAINT `chk_credit_charge_orders_credits` CHECK ((`credits` > 0)),
+  CONSTRAINT `chk_credit_charge_orders_currency` CHECK ((`currency` in (_utf8mb4'KRW',_utf8mb4'USD'))),
   CONSTRAINT `chk_credit_charge_orders_package` CHECK ((`package_code` in (_utf8mb4'credit_100',_utf8mb4'credit_300',_utf8mb4'credit_500',_utf8mb4'credit_150',_utf8mb4'credit_3300',_utf8mb4'credit_1000'))),
+  CONSTRAINT `chk_credit_charge_orders_paid` CHECK ((((`currency` = _utf8mb4'KRW') and (`paid_amount` is null) and (`paid_canceled_amount` = 0)) or ((`currency` = _utf8mb4'USD') and (`paid_amount` is not null) and (`paid_amount` > 0) and (`paid_canceled_amount` >= 0) and (`paid_canceled_amount` <= `paid_amount`)))),
   CONSTRAINT `chk_credit_charge_orders_raw` CHECK (((`raw_response` is null) or json_valid(`raw_response`))),
   CONSTRAINT `chk_credit_charge_orders_status` CHECK ((`status` in (_utf8mb4'READY',_utf8mb4'DONE',_utf8mb4'FAILED',_utf8mb4'CANCELED',_utf8mb4'PARTIAL_CANCELED')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='크레딧 충전 결제 주문(토스 단건결제) — order_id UNIQUE 멱등. 1크레딧=100원. 구독·학생청구·PG 테스트와 별개 도메인';
@@ -471,6 +476,8 @@ CREATE TABLE `credit_refunds` (
   `gross_amount` int NOT NULL COMMENT '대상 금액(KRW) = credits × 100',
   `fee_amount` int NOT NULL COMMENT '공제액(KRW·7일 이내 0·경과 10% 최소 1,000)',
   `refund_amount` int NOT NULL COMMENT '환불액(KRW) = gross − fee',
+  `currency` varchar(3) NOT NULL DEFAULT 'KRW' COMMENT '환불 통화 KRW | USD(원 주문 통화). refund_amount 는 통화와 무관하게 KRW 기준값',
+  `paid_refund_amount` decimal(10,2) DEFAULT NULL COMMENT '실제 환불 외화 금액. KRW 환불은 NULL',
   `toss_cancel_tx_key` varchar(255) DEFAULT NULL COMMENT '토스 부분취소 transactionKey',
   `status` varchar(16) NOT NULL DEFAULT 'REQUESTED' COMMENT 'REQUESTED | DONE | FAILED',
   `failure_code` varchar(64) DEFAULT NULL COMMENT '실패 코드(토스 원문)',
@@ -486,7 +493,9 @@ CREATE TABLE `credit_refunds` (
   KEY `idx_credit_refunds_lot` (`lot_id`),
   CONSTRAINT `chk_credit_refunds_amounts` CHECK (((`fee_amount` >= 0) and (`refund_amount` > 0) and (`refund_amount` = (`gross_amount` - `fee_amount`)))),
   CONSTRAINT `chk_credit_refunds_credits` CHECK ((`credits` > 0)),
+  CONSTRAINT `chk_credit_refunds_currency` CHECK ((`currency` in (_utf8mb4'KRW',_utf8mb4'USD'))),
   CONSTRAINT `chk_credit_refunds_gross` CHECK ((`gross_amount` = (`credits` * 100))),
+  CONSTRAINT `chk_credit_refunds_paid` CHECK ((((`currency` = _utf8mb4'KRW') and (`paid_refund_amount` is null)) or ((`currency` = _utf8mb4'USD') and (`paid_refund_amount` is not null) and (`paid_refund_amount` > 0)))),
   CONSTRAINT `chk_credit_refunds_raw` CHECK (((`raw_response` is null) or json_valid(`raw_response`))),
   CONSTRAINT `chk_credit_refunds_status` CHECK ((`status` in (_utf8mb4'REQUESTED',_utf8mb4'DONE',_utf8mb4'FAILED')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='크레딧 환불 실행 기록(lot 단위·원 결제 부분취소) — lot 당 REQUESTED/DONE 1건(중복 환불 방지)';
@@ -1235,5 +1244,6 @@ INSERT INTO `schema_migrations` (version) VALUES
   ('20261015105000'),
   ('20261019150906'),
   ('20261019185140'),
-  ('20261028063300');
+  ('20261028063300'),
+  ('20261101234800');
 UNLOCK TABLES;
